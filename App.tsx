@@ -70,7 +70,7 @@ const App: React.FC = () => {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/notice" element={<NoticePage />} />
-          <Route path="/report" element={<ReportPage title="보고방" type="REPORT" icon="description" color="orange-500" />} />
+          <Route path="/report" element={<ReportPage title="보고방" type="CENTER_LIST" icon="description" color="orange-500" />} />
           <Route path="/resource" element={<ResourcePage />} />
           <Route path="/forum" element={<ForumPage />} />
           <Route path="/stats" element={<StatsPage />} />

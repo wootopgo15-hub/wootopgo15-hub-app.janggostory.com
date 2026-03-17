@@ -41,7 +41,7 @@ const AdminDashboard: React.FC = () => {
   const loadCenters = async (force: boolean = false) => {
     setLoadingCenters(true);
     try {
-      const result = await fetchSheetData('CENTER_LIST', force);
+      const result = await fetchSheetData('CENTER', force);
       setCenterList(result);
     } catch (err: any) {
       console.error("Center Load Error:", err);
@@ -85,7 +85,7 @@ const AdminDashboard: React.FC = () => {
     loadUsers();
 
     // Load centers
-    const cachedCenters = getCachedSheetData('CENTER_LIST');
+    const cachedCenters = getCachedSheetData('CENTER');
     if (cachedCenters.length > 0) {
       setCenterList(cachedCenters);
       setLoadingCenters(false);

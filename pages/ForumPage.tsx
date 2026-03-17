@@ -267,34 +267,47 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {viewMode === 'MENU' && (
-          <div className="p-6 pb-44 space-y-8 flex flex-col items-center justify-center h-full animate-in fade-in duration-500">
-            <div className="text-center space-y-2 mb-4">
-              <div className="inline-flex items-center justify-center size-16 bg-emerald-100 text-emerald-500 rounded-full mb-2">
-                <span className="material-symbols-outlined text-4xl">waving_hand</span>
+          <div className="p-6 pb-44 space-y-6 md:space-y-8 flex flex-col items-center justify-start min-h-full pt-8 md:pt-16 animate-in fade-in duration-500">
+            <div className="text-center space-y-1 md:space-y-2 mb-2 md:mb-4">
+              <div className="inline-flex items-center justify-center size-14 md:size-16 bg-emerald-100 text-emerald-500 rounded-full mb-2">
+                <span className="material-symbols-outlined text-3xl md:text-4xl">waving_hand</span>
               </div>
-              <h2 className="text-2xl font-black text-[#0a1931]">환영합니다!</h2>
-              <p className="text-gray-500 font-medium text-sm">원하시는 서비스를 선택해주세요.</p>
+              <h2 className="text-xl md:text-2xl font-black text-[#0a1931]">환영합니다!</h2>
+              <p className="text-gray-500 font-medium text-xs md:text-sm">원하시는 서비스를 선택해주세요.</p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 w-full max-w-md">
+            <div className="grid grid-cols-2 gap-3 md:gap-4 w-full max-w-md">
               <button 
                 onClick={() => setViewMode('LIST')}
-                className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-4 hover:shadow-md active:scale-95 transition-all group"
+                className="bg-white p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 md:gap-4 hover:shadow-md active:scale-95 transition-all group"
               >
-                <div className="size-16 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined text-4xl">forum</span>
+                <div className="size-12 md:size-16 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-3xl md:text-4xl">forum</span>
                 </div>
-                <span className="font-black text-[#0a1931] text-lg">소통하기</span>
+                <span className="font-black text-[#0a1931] text-base md:text-lg">소통하기</span>
               </button>
               
               <button 
                 onClick={() => setViewMode('TEST_FORM')}
-                className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-4 hover:shadow-md active:scale-95 transition-all group"
+                className="bg-white p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 md:gap-4 hover:shadow-md active:scale-95 transition-all group"
               >
-                <div className="size-16 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined text-4xl">psychology</span>
+                <div className="size-12 md:size-16 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-3xl md:text-4xl">psychology</span>
                 </div>
-                <span className="font-black text-[#0a1931] text-lg">치매 테스트</span>
+                <span className="font-black text-[#0a1931] text-base md:text-lg">치매 테스트</span>
+              </button>
+
+              <button 
+                onClick={() => window.location.href = 'https://brain-games-for-dementia-prevention.vercel.janggostory.com/'}
+                className="col-span-2 bg-gradient-to-r from-orange-400 to-orange-500 p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] shadow-md border border-orange-300 flex flex-row items-center justify-center gap-3 md:gap-4 hover:shadow-lg active:scale-95 transition-all group"
+              >
+                <div className="size-12 md:size-16 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-3xl md:text-4xl">extension</span>
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="font-black text-white text-lg md:text-xl">두뇌게임 시작하기</span>
+                  <span className="text-orange-100 text-xs md:text-sm font-bold">치매 예방 인지 훈련</span>
+                </div>
               </button>
             </div>
           </div>

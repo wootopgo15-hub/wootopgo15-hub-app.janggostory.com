@@ -5,7 +5,7 @@ import { UserData, ReportData } from '../types';
 export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyXuTg8tPqXQa2jLhVzBYxUae69F9015Mrff0N4TmtUN2zYFKeb53YCgfSQU8Btcht_/exec';
 
 // 시트 이름과 실제 시트 이름을 매핑합니다. (필요에 따라 수정)
-const SHEET_MAP = {
+const SHEET_MAP: Record<string, string> = {
   'USER': 'USER',
   'NOTICE': 'NOTICE',
   'REPORT': 'REPORT',
@@ -13,7 +13,8 @@ const SHEET_MAP = {
   'FORUM': 'FORUM',
   'STATS': 'STATS',
   'STATISTICS': 'STATISTICS', // 통계 시트 추가
-  'CENTER_LIST': 'CENTER' // 센터 리스트 추가
+  'CENTER_LIST': 'REPORT', // 보고방 데이터 리스트 (백엔드에서는 REPORT로 인식)
+  'CENTER': 'CENTER_LIST' // 센터 리스트 (백엔드에서는 CENTER_LIST로 인식)
 };
 
 /**
@@ -21,6 +22,12 @@ const SHEET_MAP = {
  */
 export const submitToGoogleSheets = async (data: any): Promise<boolean> => {
   try {
+    // 백엔드에서 인식하는 시트 타입으로 변환
+    const payload = { ...data };
+    if (payload.type && SHEET_MAP[payload.type]) {
+      payload.type = SHEET_MAP[payload.type];
+    }
+
     // POST는 시트 쓰기용 (no-cors 모드 사용)
     await fetch(WEB_APP_URL, {
       method: 'POST',
@@ -29,7 +36,7 @@ export const submitToGoogleSheets = async (data: any): Promise<boolean> => {
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
 
     // no-cors는 응답을 읽을 수 없으므로 성공으로 간주하고 약간의 딜레이를 줌
@@ -59,6 +66,9 @@ export const fetchSheetData = async (type: string = 'USER', forceRefresh: boolea
   const CACHE_TIME_KEY = `${CACHE_KEY}_time`;
   const CACHE_DURATION = 1000 * 60 * 1; // 1분 캐시 유지
 
+  // 백엔드에서 인식하는 시트 타입으로 변환
+  const mappedType = SHEET_MAP[type] || type;
+
   try {
     // 1. 캐시 확인 (강제 새로고침이 아닐 때)
     if (!forceRefresh) {
@@ -75,8 +85,8 @@ export const fetchSheetData = async (type: string = 'USER', forceRefresh: boolea
     }
 
     // 2. 네트워크 요청
-    console.log(`[Network Fetch] ${type}`);
-    const fetchUrl = `${WEB_APP_URL}?type=${type}&t=${Date.now()}`;
+    console.log(`[Network Fetch] ${type} (mapped to ${mappedType})`);
+    const fetchUrl = `${WEB_APP_URL}?type=${mappedType}&t=${Date.now()}`;
     const response = await fetch(fetchUrl);
 
     if (!response.ok) {

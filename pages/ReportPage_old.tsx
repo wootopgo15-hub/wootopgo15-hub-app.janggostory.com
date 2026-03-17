@@ -11,7 +11,7 @@ interface Props {
   color?: string;
 }
 
-const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", icon = "description", color = "primary" }) => {
+const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST", icon = "description", color = "primary" }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -67,7 +67,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
       setDataList(cached);
     }
     
-    const cachedCenters = getCachedSheetData('CENTER_LIST');
+    const cachedCenters = getCachedSheetData('CENTER');
     if (cachedCenters.length > 0) {
       setCenterList(cachedCenters);
     }
@@ -91,7 +91,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
 
   const loadCenterList = async (force: boolean = false) => {
     try {
-      const centers = await fetchSheetData('CENTER_LIST', force);
+      const centers = await fetchSheetData('CENTER', force);
       setCenterList(centers);
     } catch (error) {
       console.error("Failed to load center list:", error);
@@ -458,8 +458,8 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
             <span className={`material-symbols-outlined text-[26px] ${type === 'NOTICE' && 'fill-1'}`}>campaign</span>
             <span className="text-[10px] font-bold">공지방</span>
           </button>
-          <button onClick={() => navigate('/report')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'REPORT' ? 'text-primary' : 'text-gray-400'}`}>
-            <span className={`material-symbols-outlined text-[26px] ${type === 'REPORT' && 'fill-1'}`}>description</span>
+          <button onClick={() => navigate('/report')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'CENTER_LIST' ? 'text-primary' : 'text-gray-400'}`}>
+            <span className={`material-symbols-outlined text-[26px] ${type === 'CENTER_LIST' && 'fill-1'}`}>description</span>
             <span className="text-[10px] font-bold">보고방</span>
           </button>
           <button onClick={() => navigate('/resource')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'RESOURCE' ? 'text-primary' : 'text-gray-400'}`}>

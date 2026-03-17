@@ -11,7 +11,7 @@ interface Props {
   color?: string;
 }
 
-const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", icon = "description", color = "primary" }) => {
+const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST", icon = "description", color = "primary" }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -29,9 +29,16 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
   const [showCenterSuggestions, setShowCenterSuggestions] = useState(false);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
 
+  // 센터 추가 모달 상태
+  const [isAddCenterModalOpen, setIsAddCenterModalOpen] = useState(false);
+  const [newCenterName, setNewCenterName] = useState('');
+  const [newCenterBranch, setNewCenterBranch] = useState('');
+  const [newCenterStatus, setNewCenterStatus] = useState('승인');
+  const [isAddingCenter, setIsAddingCenter] = useState(false);
+
   const filteredCenters = useMemo(() => {
     const trimmedInput = formCenter.trim();
-    const excludedWords = ['요양원', '센터', '요양', '주간', '보호'];
+    const excludedWords = ['요양원', '센터', '요양', '주간', '보호', '주간보', '주간보호', '주간보호센', '주간보호센터', '보호센', '보호센터', '간보', '간보호', '간보호센', '간보호센터', '호센', '호센터'];
     
     // 2글자 미만이거나, 제외 단어만 정확히 입력한 경우 미리보기 숨김
     if (trimmedInput.length < 2 || excludedWords.includes(trimmedInput) || !userData) return [];
@@ -70,7 +77,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
       setDataList(cached);
     }
     
-    const cachedCenters = getCachedSheetData('CENTER_LIST');
+    const cachedCenters = getCachedSheetData('CENTER');
     if (cachedCenters.length > 0) {
       setCenterList(cachedCenters);
     }
@@ -99,7 +106,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
 
   const loadCenterList = async (force: boolean = false) => {
     try {
-      const centers = await fetchSheetData('CENTER_LIST', force);
+      const centers = await fetchSheetData('CENTER', force);
       setCenterList(centers);
     } catch (error) {
       console.error("Failed to load center list:", error);
@@ -263,6 +270,51 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
     setIsModalOpen(true);
   };
 
+  const handleAddCenterClick = () => {
+    if (!userData) return;
+    if (userData.role === '강사') {
+      setModalMessage('센터추가는 일반강사는 할수 없습니다');
+      return;
+    }
+    setNewCenterName('');
+    setNewCenterBranch(userData.role === '관리자' ? '' : (userData.branch || ''));
+    setNewCenterStatus('승인');
+    setIsAddCenterModalOpen(true);
+  };
+
+  const handleAddCenterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCenterName.trim() || !newCenterBranch.trim()) return;
+
+    setIsAddingCenter(true);
+    try {
+      const payload = {
+        type: 'CENTER',
+        mode: 'APPEND',
+        '센터명': newCenterName.trim(),
+        '지사': newCenterBranch.trim(),
+        '승인상태': newCenterStatus
+      };
+
+      const success = await submitToGoogleSheets(payload);
+      if (success) {
+        setIsAddCenterModalOpen(false);
+        setNewCenterName('');
+        setNewCenterBranch('');
+        setNewCenterStatus('승인');
+        setModalMessage('센터가 성공적으로 추가되었습니다.');
+        loadCenterList(true); // 센터 목록 새로고침
+      } else {
+        setModalMessage('센터 추가에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('Center Add Error:', err);
+      setModalMessage('센터 추가 중 오류가 발생했습니다.');
+    } finally {
+      setIsAddingCenter(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] pb-44 font-sans">
       <header className="px-6 pt-12 pb-6 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 shadow-sm safe-top">
@@ -275,9 +327,17 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
             <p className="text-[9px] text-primary font-black uppercase tracking-[0.2em] mt-1">Management Hub</p>
           </div>
         </div>
-        <button onClick={() => { loadData(true); loadCenterList(true); }} disabled={isRefreshing} className={`size-10 rounded-full flex items-center justify-center bg-primary text-white shadow-lg transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
-          <span className="material-symbols-outlined text-xl">refresh</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleAddCenterClick} 
+            className="h-10 px-4 rounded-full flex items-center justify-center bg-emerald-500 text-white shadow-lg transition-all active:scale-95 font-bold text-sm"
+          >
+            센터추가
+          </button>
+          <button onClick={() => { loadData(true); loadCenterList(true); }} disabled={isRefreshing} className={`size-10 rounded-full flex items-center justify-center bg-primary text-white shadow-lg transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
+            <span className="material-symbols-outlined text-xl">refresh</span>
+          </button>
+        </div>
       </header>
 
       <section className="px-4 py-6">
@@ -493,8 +553,8 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
             <span className={`material-symbols-outlined text-[26px] ${type === 'NOTICE' && 'fill-1'}`}>campaign</span>
             <span className="text-[10px] font-bold">공지방</span>
           </button>
-          <button onClick={() => navigate('/report')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'REPORT' ? 'text-primary' : 'text-gray-400'}`}>
-            <span className={`material-symbols-outlined text-[26px] ${type === 'REPORT' && 'fill-1'}`}>description</span>
+          <button onClick={() => navigate('/report')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'CENTER_LIST' ? 'text-primary' : 'text-gray-400'}`}>
+            <span className={`material-symbols-outlined text-[26px] ${type === 'CENTER_LIST' && 'fill-1'}`}>description</span>
             <span className="text-[10px] font-bold">보고방</span>
           </button>
           <button onClick={() => navigate('/resource')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'RESOURCE' ? 'text-primary' : 'text-gray-400'}`}>
@@ -511,6 +571,75 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", ico
           </button>
         </div>
       </nav>
+
+      {/* 센터 추가 모달 */}
+      {isAddCenterModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-[#111318]">센터 추가</h3>
+              <button onClick={() => setIsAddCenterModalOpen(false)} className="size-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200">
+                <span className="material-symbols-outlined text-sm font-bold">close</span>
+              </button>
+            </div>
+            <form onSubmit={handleAddCenterSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">센터명</label>
+                <input
+                  type="text"
+                  value={newCenterName}
+                  onChange={(e) => setNewCenterName(e.target.value)}
+                  placeholder="추가할 센터명을 입력하세요"
+                  className="w-full h-12 px-4 rounded-xl bg-gray-50 border-none text-sm font-medium focus:ring-2 focus:ring-emerald-500 transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">지사</label>
+                <select
+                  value={newCenterBranch}
+                  onChange={(e) => setNewCenterBranch(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl bg-gray-50 border-none text-sm font-medium focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-70"
+                  required
+                  disabled={userData?.role !== '관리자'}
+                >
+                  <option value="" disabled>지사를 선택하세요</option>
+                  <option value="천안">천안</option>
+                  <option value="세종">세종</option>
+                  <option value="평택">평택</option>
+                  <option value="준비중">준비중</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">승인상태</label>
+                <select
+                  value={newCenterStatus}
+                  onChange={(e) => setNewCenterStatus(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl bg-gray-50 border-none text-sm font-medium focus:ring-2 focus:ring-emerald-500 transition-all"
+                >
+                  <option value="승인">승인</option>
+                  <option value="대기">대기</option>
+                  <option value="거절">거절</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={isAddingCenter || !newCenterName.trim() || !newCenterBranch.trim()}
+                className="w-full h-12 bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+              >
+                {isAddingCenter ? (
+                  <>
+                    <span className="material-symbols-outlined animate-spin">refresh</span>
+                    <span>추가 중...</span>
+                  </>
+                ) : (
+                  <span>추가하기</span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* 커스텀 모달 */}
       {modalMessage && (
