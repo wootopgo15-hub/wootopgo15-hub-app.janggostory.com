@@ -11,6 +11,8 @@ import NoticePage from './pages/NoticePage';
 import ResourcePage from './pages/ResourcePage';
 import ForumPage from './pages/ForumPage';
 import StatsPage from './pages/StatsPage';
+import PropsOffPage from './pages/PropsOffPage';
+import PropsReminder from './components/PropsReminder';
 
 const App: React.FC = () => {
   useEffect(() => {
@@ -63,6 +65,7 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <div className="min-h-screen w-full font-sans bg-[#f8fafc]">
+        <PropsReminder />
         <Routes>
           <Route path="/" element={<RoleSelectionPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -74,6 +77,7 @@ const App: React.FC = () => {
           <Route path="/resource" element={<ResourcePage />} />
           <Route path="/forum" element={<ForumPage />} />
           <Route path="/stats" element={<StatsPage />} />
+          <Route path="/props-off" element={<PropsOffPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

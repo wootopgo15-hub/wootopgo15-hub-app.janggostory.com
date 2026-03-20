@@ -28,11 +28,32 @@ const SignUpPage: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'phoneNumber') {
+      // 숫자만 추출
+      const onlyNums = value.replace(/[^0-9]/g, '');
+      let formattedPhone = onlyNums;
+      
+      if (onlyNums.length > 3 && onlyNums.length <= 7) {
+        formattedPhone = `${onlyNums.slice(0, 3)}-${onlyNums.slice(3)}`;
+      } else if (onlyNums.length > 7) {
+        formattedPhone = `${onlyNums.slice(0, 3)}-${onlyNums.slice(3, 7)}-${onlyNums.slice(7, 11)}`;
+      }
+      
+      setFormData(prev => ({ ...prev, [name]: formattedPhone }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.email.toLowerCase().endsWith('@gmail.com')) {
+      alert('gmail.com 이메일 주소만 가입 가능합니다.');
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -106,7 +127,26 @@ const SignUpPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-bold text-[#111318] mb-1.5 ml-3">이메일 (ID)</label>
-              <input name="email" value={formData.email} onChange={handleChange} className="w-full h-12 px-5 rounded-2xl border-none input-glass focus:bg-white transition-all outline-none" placeholder="example@janggo.com" required type="email" />
+              <div className="flex items-center gap-2">
+                <input 
+                  value={formData.email.split('@')[0] || ''} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: `${e.target.value.replace(/@/g, '')}@${formData.email.split('@')[1] || 'gmail.com'}` }))} 
+                  className="flex-1 h-12 px-5 rounded-2xl border-none input-glass focus:bg-white transition-all outline-none" 
+                  placeholder="example" 
+                  required 
+                  type="text" 
+                  pattern="^[a-zA-Z0-9._%+-]+$" 
+                  title="이메일 아이디를 영문/숫자로 입력해주세요." 
+                />
+                <span className="text-[#111318] font-bold text-lg">@</span>
+                <select 
+                  value={formData.email.split('@')[1] || 'gmail.com'} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: `${formData.email.split('@')[0] || ''}@${e.target.value}` }))} 
+                  className="flex-1 h-12 px-4 rounded-2xl border-none input-glass focus:bg-white transition-all outline-none text-center font-medium text-[#111318]"
+                >
+                  <option value="gmail.com">gmail.com</option>
+                </select>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-bold text-[#111318] mb-1.5 ml-3">비밀번호</label>
@@ -128,7 +168,7 @@ const SignUpPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-bold text-[#111318] mb-1.5 ml-3">전화번호</label>
-              <input name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className="w-full h-12 px-5 rounded-2xl border-none input-glass focus:bg-white transition-all outline-none" placeholder="010-0000-0000" required pattern="[0-9]{3}-[0-9]{4}-[0-9]{4}" title="010-0000-0000 형식으로 입력해주세요" />
+              <input name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className="w-full h-12 px-5 rounded-2xl border-none input-glass focus:bg-white transition-all outline-none" placeholder="010-0000-0000" required pattern="[0-9]{3}-[0-9]{4}-[0-9]{4}" title="010-0000-0000 형식으로 입력해주세요" maxLength={13} />
             </div>
             <div>
               <label className="block text-xs font-bold text-[#111318] mb-1.5 ml-3">주소</label>

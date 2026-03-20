@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitToGoogleSheets, fetchSheetData, getCachedSheetData } from '../services/googleSheets';
-import AdBanner from '../components/AdBanner';
 import { Play } from 'lucide-react';
 
 interface Props {
@@ -164,18 +163,18 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] pb-44 font-sans">
-      <header className="px-6 pt-12 pb-6 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 shadow-sm safe-top">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/home')} className="size-10 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
-            <span className="material-symbols-outlined font-bold text-gray-400">arrow_back</span>
+      <header className="px-4 pt-6 pb-3 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 safe-top">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/home')} className="size-8 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
+            <span className="material-symbols-outlined font-bold text-lg">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-xl font-black tracking-tight leading-none text-[#0a1931]">{title}</h1>
-            <p className="text-[9px] text-amber-500 font-black uppercase tracking-[0.2em] mt-1">Resource Hub</p>
+            <h1 className="text-lg font-black tracking-tight leading-none">{title}</h1>
+            <p className="text-[8px] text-amber-500 font-black uppercase tracking-[0.2em] mt-1">Resource Hub</p>
           </div>
         </div>
-        <button onClick={() => loadData(true)} disabled={isRefreshing} className={`size-10 rounded-full flex items-center justify-center bg-amber-500 text-white shadow-lg shadow-amber-500/30 transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
-          <span className="material-symbols-outlined text-xl">refresh</span>
+        <button onClick={() => loadData(true)} disabled={isRefreshing} className={`size-8 rounded-full flex items-center justify-center bg-amber-500 text-white shadow-sm transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
+          <span className="material-symbols-outlined text-base">refresh</span>
         </button>
       </header>
 
@@ -265,7 +264,6 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
             <p className="text-gray-300 font-bold">등록된 자료가 없습니다.</p>
           </div>
         )}
-        <AdBanner slot="3333333333" className="mx-0 mt-12" />
       </main>
 
       {userData?.role === '관리자' && (
@@ -282,9 +280,9 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
             setFormBranch(userData.branch || '전체');
             setIsModalOpen(true);
           }} 
-          className="fixed bottom-28 right-6 size-16 bg-amber-500 text-white rounded-full shadow-2xl shadow-amber-500/40 flex items-center justify-center active:scale-90 z-40 transition-all safe-mb"
+          className="fixed bottom-28 right-6 size-14 bg-amber-500 text-white rounded-full shadow-2xl shadow-amber-500/40 flex items-center justify-center active:scale-90 z-40 transition-all safe-mb"
         >
-          <span className="material-symbols-outlined text-4xl">add</span>
+          <span className="material-symbols-outlined text-3xl">add</span>
         </button>
       )}
 

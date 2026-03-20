@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitToGoogleSheets, fetchSheetData, getCachedSheetData } from '../services/googleSheets';
-import AdBanner from '../components/AdBanner';
 
 interface Props {
   title?: string;
@@ -226,10 +225,10 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#f8fafc] font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] font-sans pb-44">
       {/* Header */}
-      <header className="px-6 pt-12 pb-4 bg-white/90 backdrop-blur-xl flex items-center justify-between border-b border-gray-100 shadow-sm z-10 safe-top">
-        <div className="flex items-center gap-4">
+      <header className="px-4 pt-6 pb-3 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 safe-top">
+        <div className="flex items-center gap-3">
           <button 
             onClick={() => {
               if (viewMode === 'MENU') navigate('/home');
@@ -237,9 +236,9 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
               else if (viewMode === 'TEST_RUN' || viewMode === 'TEST_RESULT') setViewMode('TEST_FORM');
               else setViewMode('LIST');
             }} 
-            className="size-10 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all"
+            className="size-8 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all"
           >
-            <span className="material-symbols-outlined font-bold">
+            <span className="material-symbols-outlined font-bold text-lg">
               {viewMode === 'MENU' ? 'arrow_back' : 'arrow_back'}
             </span>
           </button>
@@ -247,7 +246,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
             <h1 className="text-lg font-black tracking-tight leading-none">
               {viewMode === 'WRITE' ? '글쓰기' : viewMode === 'DETAIL' ? '상세보기' : viewMode === 'TEST_FORM' || viewMode === 'TEST_RUN' || viewMode === 'TEST_RESULT' ? '치매 테스트' : title}
             </h1>
-            <p className="text-[9px] text-emerald-500 font-black uppercase tracking-[0.2em] mt-1">
+            <p className="text-[8px] text-emerald-500 font-black uppercase tracking-[0.2em] mt-1">
               {viewMode === 'WRITE' ? 'Create New Post' : viewMode === 'TEST_FORM' || viewMode === 'TEST_RUN' || viewMode === 'TEST_RESULT' ? 'Cognitive Test' : 'Communication Hub'}
             </p>
           </div>
@@ -256,18 +255,18 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
         {viewMode === 'LIST' && (
           <button 
             onClick={() => setViewMode('WRITE')} 
-            className="h-10 px-4 rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 flex items-center gap-2 active:scale-95 transition-all"
+            className="h-8 px-3 rounded-full bg-emerald-500 text-white shadow-sm flex items-center gap-1.5 active:scale-95 transition-all"
           >
-            <span className="material-symbols-outlined text-lg">edit</span>
-            <span className="text-sm font-black">글쓰기</span>
+            <span className="material-symbols-outlined text-base">edit</span>
+            <span className="text-xs font-bold">글쓰기</span>
           </button>
         )}
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <main className="w-full">
         {viewMode === 'MENU' && (
-          <div className="p-6 pb-44 space-y-6 md:space-y-8 flex flex-col items-center justify-start min-h-full pt-8 md:pt-16 animate-in fade-in duration-500">
+          <div className="p-6 space-y-6 md:space-y-8 flex flex-col items-center justify-start min-h-full pt-8 md:pt-16 animate-in fade-in duration-500">
             <div className="text-center space-y-1 md:space-y-2 mb-2 md:mb-4">
               <div className="inline-flex items-center justify-center size-14 md:size-16 bg-emerald-100 text-emerald-500 rounded-full mb-2">
                 <span className="material-symbols-outlined text-3xl md:text-4xl">waving_hand</span>
@@ -314,7 +313,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
         )}
 
         {viewMode === 'TEST_FORM' && (
-          <div className="p-6 pb-44 max-w-md mx-auto animate-in slide-in-from-right duration-300">
+          <div className="p-6 max-w-md mx-auto animate-in slide-in-from-right duration-300">
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="text-center mb-6">
                 <span className="material-symbols-outlined text-5xl text-rose-500 mb-2">clinical_notes</span>
@@ -368,7 +367,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
         )}
 
         {viewMode === 'TEST_RUN' && (
-          <div className="p-6 pb-44 max-w-md mx-auto animate-in fade-in duration-300">
+          <div className="p-6 max-w-md mx-auto animate-in fade-in duration-300">
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8">
               <div className="flex justify-between items-center mb-6">
                 <span className="text-sm font-bold text-gray-400">문항 {testCurrentQuestion + 1} / {dementiaQuestions.length}</span>
@@ -412,7 +411,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
         )}
 
         {viewMode === 'TEST_RESULT' && (
-          <div className="p-6 pb-44 max-w-md mx-auto animate-in zoom-in-95 duration-500">
+          <div className="p-6 max-w-md mx-auto animate-in zoom-in-95 duration-500">
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 text-center space-y-6">
               <div className={`size-24 mx-auto rounded-full flex items-center justify-center mb-4 ${
                 testResult === '정상' ? 'bg-emerald-100 text-emerald-500' : 
@@ -451,8 +450,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
         )}
 
         {viewMode === 'LIST' && (
-          <div className="p-4 space-y-4 pb-44">
-            <AdBanner slot="4444444444" className="mt-0 mb-4" />
+          <div className="p-4 space-y-4">
             
             {/* Search Bar */}
             <div className="relative mb-6">
@@ -513,7 +511,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
         )}
 
         {viewMode === 'DETAIL' && selectedPost && (
-          <div className="p-6 pb-44 space-y-6">
+          <div className="p-6 space-y-6">
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-6 sm:p-8">
               <div className="flex flex-col gap-4 mb-8">
                 <div className="flex items-center gap-2">
@@ -567,7 +565,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
         )}
 
         {viewMode === 'WRITE' && (
-          <div className="p-6 pb-44">
+          <div className="p-6">
             <form onSubmit={handleSubmitPost} className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
               <div>
                 <label className="block text-sm font-black text-[#0a1931] mb-3 ml-2">제목</label>
@@ -651,7 +649,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
             </form>
           </div>
         )}
-      </div>
+      </main>
 
       {/* Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white/90 backdrop-blur-xl safe-bottom">

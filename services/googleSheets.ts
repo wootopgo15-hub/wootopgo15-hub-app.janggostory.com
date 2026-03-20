@@ -14,7 +14,8 @@ const SHEET_MAP: Record<string, string> = {
   'STATS': 'STATS',
   'STATISTICS': 'STATISTICS', // 통계 시트 추가
   'CENTER_LIST': 'REPORT', // 보고방 데이터 리스트 (백엔드에서는 REPORT로 인식)
-  'CENTER': 'CENTER_LIST' // 센터 리스트 (백엔드에서는 CENTER_LIST로 인식)
+  'CENTER': 'CENTER_LIST', // 센터 리스트 (백엔드에서는 CENTER_LIST로 인식)
+  'PROPS_OFF': 'PROPS_OFF' // 교구&오프 시트
 };
 
 /**
@@ -28,10 +29,9 @@ export const submitToGoogleSheets = async (data: any): Promise<boolean> => {
       payload.type = SHEET_MAP[payload.type];
     }
 
-    // POST는 시트 쓰기용 (no-cors 모드 사용)
-    await fetch(WEB_APP_URL, {
+    // POST는 시트 쓰기용
+    const response = await fetch(WEB_APP_URL, {
       method: 'POST',
-      mode: 'no-cors',
       cache: 'no-cache',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
@@ -39,12 +39,36 @@ export const submitToGoogleSheets = async (data: any): Promise<boolean> => {
       body: JSON.stringify(payload),
     });
 
-    // no-cors는 응답을 읽을 수 없으므로 성공으로 간주하고 약간의 딜레이를 줌
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
+
+    const text = await response.text();
+    
+    if (text.trim().startsWith('<!DOCTYPE html>')) {
+      throw new Error('Apps Script 배포 권한을 "모든 사람(Anyone)"으로 설정했는지 확인하세요.');
+    }
+
+    let resultData;
+    try {
+      resultData = JSON.parse(text);
+    } catch (e) {
+      console.warn('Failed to parse response as JSON:', text);
+      // JSON이 아니더라도 에러 메시지가 포함되어 있는지 확인
+      if (text.toLowerCase().includes('error')) {
+        throw new Error(`Apps Script Error: ${text}`);
+      }
+      return true; // 에러가 없었으면 성공으로 간주
+    }
+
+    if (resultData && resultData.result === 'error') {
+      throw new Error(resultData.message || 'Apps Script 내부 에러');
+    }
+
     return true;
   } catch (error) {
     console.error('Submit Error:', error);
-    return false;
+    throw error;
   }
 };
 
@@ -101,6 +125,10 @@ export const fetchSheetData = async (type: string = 'USER', forceRefresh: boolea
 
     const data = JSON.parse(text);
     if (data && data.result === "error") {
+      if (data.message === "Invalid sheet type" || data.message?.includes("Invalid sheet")) {
+        console.warn(`[Sheet Not Found] ${mappedType} 시트가 아직 생성되지 않았습니다. 빈 배열을 반환합니다.`);
+        return [];
+      }
       throw new Error(data.message || "Apps Script 내부 에러");
     }
 

@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitToGoogleSheets, fetchSheetData, getCachedSheetData } from '../services/googleSheets';
-import AdBanner from '../components/AdBanner';
 
 interface Props {
   title?: string;
@@ -143,18 +142,18 @@ const NoticePage: React.FC<Props> = ({ title = "공지방", type = "NOTICE", ico
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] pb-44 font-sans">
-      <header className="px-6 pt-12 pb-6 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 shadow-sm safe-top">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/home')} className="size-10 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
-            <span className="material-symbols-outlined font-bold">arrow_back</span>
+      <header className="px-4 pt-6 pb-3 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 safe-top">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/home')} className="size-8 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
+            <span className="material-symbols-outlined font-bold text-lg">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-xl font-black tracking-tight leading-none">{title}</h1>
-            <p className="text-[9px] text-primary font-black uppercase tracking-[0.2em] mt-1">Notice Hub</p>
+            <h1 className="text-lg font-black tracking-tight leading-none">{title}</h1>
+            <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] mt-1">Notice Hub</p>
           </div>
         </div>
-        <button onClick={() => loadData(true)} disabled={isRefreshing} className={`size-10 rounded-full flex items-center justify-center bg-primary text-white shadow-lg transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
-          <span className="material-symbols-outlined text-xl">refresh</span>
+        <button onClick={() => loadData(true)} disabled={isRefreshing} className={`size-8 rounded-full flex items-center justify-center bg-primary text-white shadow-sm transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
+          <span className="material-symbols-outlined text-base">refresh</span>
         </button>
       </header>
 
@@ -198,7 +197,6 @@ const NoticePage: React.FC<Props> = ({ title = "공지방", type = "NOTICE", ico
             <p className="text-gray-300 font-bold">등록된 공지사항이 없습니다.</p>
           </div>
         )}
-        <AdBanner slot="1111111111" className="mx-0" />
       </main>
 
       {/* 관리자만 등록 버튼 노출 (원하는 경우) */}
@@ -212,7 +210,7 @@ const NoticePage: React.FC<Props> = ({ title = "공지방", type = "NOTICE", ico
             setFormBranch(userData.branch || '전체');
             setIsModalOpen(true);
           }} 
-          className="fixed bottom-36 right-6 size-16 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 z-40 border-4 border-white safe-mb"
+          className="fixed bottom-28 right-6 size-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 z-40 border-4 border-white safe-mb"
         >
           <span className="material-symbols-outlined text-3xl">add</span>
         </button>

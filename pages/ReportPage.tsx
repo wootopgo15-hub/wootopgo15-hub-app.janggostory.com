@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitToGoogleSheets, fetchSheetData, getCachedSheetData } from '../services/googleSheets';
-import AdBanner from '../components/AdBanner';
 
 interface Props {
   title?: string;
@@ -20,12 +19,14 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [userData, setUserData] = useState<any>(null);
   const [editItem, setEditItem] = useState<any>(null);
 
   const [formCenter, setFormCenter] = useState('');
   const [formSubject, setFormSubject] = useState('');
   const [formTime, setFormTime] = useState('');
+  const [formDate, setFormDate] = useState('');
   const [showCenterSuggestions, setShowCenterSuggestions] = useState(false);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
 
@@ -188,12 +189,24 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
     const days = [];
     for (let i = 0; i < startDay; i++) days.push(null);
     for (let i = 1; i <= totalDays; i++) days.push(new Date(year, month, i));
+    
+    // 7의 배수로 맞추기 위해 빈 칸 추가
+    const remaining = days.length % 7;
+    if (remaining > 0) {
+      for (let i = 0; i < 7 - remaining; i++) days.push(null);
+    }
+    
     return days;
   }, [currentDate]);
 
   const handleAddData = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userData) return;
+
+    if (formDate.endsWith('-00')) {
+      setModalMessage("날짜를 올바르게 선택해주세요.");
+      return;
+    }
 
     // 센터 유효성 검사
     const trimmedCenter = formCenter.trim();
@@ -205,41 +218,36 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
 
     setLoading(true);
 
-    const days = ['일', '월', '화', '수', '목', '금', '토'];
     const now = new Date();
     
     const payload: any = {
       type: type,
       mode: editItem ? 'UPDATE' : 'APPEND',
-      userName: userData.name, // 이름(자동)
-      date: formatDate(selectedDate), // 날짜
-      time: formTime, // 시간(입력)
-      dayOfWeek: days[selectedDate.getDay()],
-      center: formCenter, // 센터(입력)
-      subject: formSubject, // 과목(입력)
-      branch: userData.branch, // 지사(자동)
-      email: userData.email, // 이메일(자동)
-      department: userData.department,
-      timestamp: editItem ? editItem['타임스탬프'] : now.toISOString(),
+      '이름': userData.name, // 이름(자동)
+      '날짜': formDate, // 날짜(입력)
+      '시간': formTime, // 시간(입력)
+      '센터': formCenter, // 센터(입력)
+      '과목': formSubject, // 과목(입력)
+      '지사': userData.branch, // 지사(자동)
+      '이메일': userData.email, // 이메일(자동)
+      '타임스탬프': editItem ? editItem['타임스탬프'] : now.toISOString(),
     };
 
     try {
       // 1. 낙관적 업데이트 (화면에 즉시 반영)
       const newItem = {
-        '이름': payload.userName,
-        '날짜': payload.date,
-        '시간': payload.time,
-        '요일': payload.dayOfWeek,
-        '센터': payload.center,
-        '과목': payload.subject,
-        '지사': payload.branch,
-        '이메일': payload.email,
-        '부서': payload.department,
-        '타임스탬프': payload.timestamp
+        '이름': payload['이름'],
+        '날짜': payload['날짜'],
+        '시간': payload['시간'],
+        '센터': payload['센터'],
+        '과목': payload['과목'],
+        '지사': payload['지사'],
+        '이메일': payload['이메일'],
+        '타임스탬프': payload['타임스탬프']
       };
 
       if (editItem) {
-        setDataList(prev => prev.map(item => item['타임스탬프'] === payload.timestamp ? { ...item, ...newItem } : item));
+        setDataList(prev => prev.map(item => item['타임스탬프'] === payload['타임스탬프'] ? { ...item, ...newItem } : item));
       } else {
         setDataList(prev => [...prev, newItem]);
       }
@@ -254,8 +262,9 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
       // 2. 백그라운드에서 구글 시트에 전송 및 동기화
       await submitToGoogleSheets(payload);
       loadData(true); // 강제 새로고침으로 캐시 업데이트 및 완벽한 동기화
-    } catch (err) {
+    } catch (err: any) {
       console.error('Submit Error:', err);
+      setModalMessage(`저장에 실패했습니다: ${err.message || '알 수 없는 오류'}`);
       loadData(true); // 에러 발생 시 서버 데이터로 원상복구
     } finally {
       setLoading(false);
@@ -267,6 +276,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
     setFormCenter(item['센터'] || '');
     setFormSubject(item['과목'] || '');
     setFormTime(item['시간'] || '');
+    setFormDate(item['날짜'] || formatDate(selectedDate));
     setIsModalOpen(true);
   };
 
@@ -307,135 +317,102 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
       } else {
         setModalMessage('센터 추가에 실패했습니다.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Center Add Error:', err);
-      setModalMessage('센터 추가 중 오류가 발생했습니다.');
+      setModalMessage(`센터 추가 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
     } finally {
       setIsAddingCenter(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] pb-44 font-sans">
-      <header className="px-6 pt-12 pb-6 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 shadow-sm safe-top">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/home')} className="size-10 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
-            <span className="material-symbols-outlined font-bold">arrow_back</span>
+    <div className="h-[100dvh] bg-white text-[#0f172a] font-sans overflow-hidden flex flex-col pb-20 safe-mb">
+      <header className="px-4 pt-6 pb-3 bg-white/90 backdrop-blur-xl flex items-center justify-between shrink-0 border-b border-gray-100 safe-top z-40">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/home')} className="size-8 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
+            <span className="material-symbols-outlined font-bold text-lg">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-xl font-black tracking-tight leading-none">{title}</h1>
-            <p className="text-[9px] text-primary font-black uppercase tracking-[0.2em] mt-1">Management Hub</p>
+            <h1 className="text-lg font-black tracking-tight leading-none">{title}</h1>
+            <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] mt-1">Management Hub</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button 
             onClick={handleAddCenterClick} 
-            className="h-10 px-4 rounded-full flex items-center justify-center bg-emerald-500 text-white shadow-lg transition-all active:scale-95 font-bold text-sm"
+            className="h-8 px-3 rounded-full flex items-center justify-center bg-emerald-500 text-white shadow-sm transition-all active:scale-95 font-bold text-xs"
           >
             센터추가
           </button>
-          <button onClick={() => { loadData(true); loadCenterList(true); }} disabled={isRefreshing} className={`size-10 rounded-full flex items-center justify-center bg-primary text-white shadow-lg transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
-            <span className="material-symbols-outlined text-xl">refresh</span>
+          <button onClick={() => { loadData(true); loadCenterList(true); }} disabled={isRefreshing} className={`size-8 rounded-full flex items-center justify-center bg-primary text-white shadow-sm transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
+            <span className="material-symbols-outlined text-lg">refresh</span>
           </button>
         </div>
       </header>
 
-      <section className="px-4 py-6">
-        <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden">
-          <div className="flex items-center justify-between p-6">
-            <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="size-10 flex items-center justify-center hover:bg-gray-50 rounded-xl"><span className="material-symbols-outlined">chevron_left</span></button>
-            <h2 className="text-lg font-black">{currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월</h2>
-            <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="size-10 flex items-center justify-center hover:bg-gray-50 rounded-xl"><span className="material-symbols-outlined">chevron_right</span></button>
-          </div>
-          <div className="px-3 pb-6 text-center">
-            <div className="grid grid-cols-7 mb-2">
-              {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
-                <div key={day} className={`text-[10px] font-bold uppercase ${i === 0 ? 'text-rose-400' : 'text-gray-300'}`}>{day}</div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {calendarDays.map((date, i) => {
-                if (!date) return <div key={`empty-${i}`} className="aspect-square"></div>;
-                const dateStr = formatDate(date);
-                const isSelected = dateStr === formatDate(selectedDate);
-                const dayData = groupedData.get(dateStr) || [];
-                
-                // 센터별 색상 매핑 (무지개 색상 계열)
-                const rainbowColors = [
-                  'bg-rose-500', 'bg-orange-500', 'bg-amber-500', 
-                  'bg-emerald-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500'
-                ];
-                
-                return (
-                  <button 
-                    key={i} 
-                    onClick={() => setSelectedDate(date)} 
-                    className={`relative aspect-square flex flex-col items-center pt-1 rounded-xl border transition-all ${isSelected ? 'bg-white border-primary ring-2 ring-primary/20 shadow-sm z-10' : 'bg-white border-gray-100 hover:border-gray-200'}`}>
-                    <span className={`text-[10px] font-black mb-1 ${isSelected ? 'text-primary' : 'text-gray-400'}`}>{date.getDate()}</span>
-                    
-                    <div className="w-full px-0.5 space-y-0.5 overflow-hidden">
-                      {dayData.slice(0, 4).map((item, idx) => {
-                        const centerName = item['센터'] || item['지사'] || '알수없음';
-                        const mobileCenterName = centerName.length > 3 ? centerName.substring(0, 3) + '...' : centerName;
-                        // 센터 이름 기반으로 고정된 랜덤 색상 선택
-                        const colorIdx = centerName.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % rainbowColors.length;
-                        return (
-                          <div 
-                            key={idx} 
-                            className={`${rainbowColors[colorIdx]} text-[7px] md:text-[10px] text-white font-bold px-0.5 md:px-1.5 py-0.5 md:py-1 rounded-sm overflow-hidden whitespace-nowrap md:text-ellipsis text-center md:text-left leading-none tracking-tighter md:tracking-normal`}>
-                            <span className="md:hidden">{mobileCenterName}</span>
-                            <span className="hidden md:inline">{centerName}</span>
-                          </div>
-                        );
-                      })}
-                      {dayData.length > 4 && (
-                        <div className="text-[7px] text-gray-400 font-bold text-center leading-none">
-                          +{dayData.length - 4}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        <div className="flex items-center justify-between p-3 shrink-0">
+          <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="size-8 flex items-center justify-center hover:bg-gray-50 rounded-xl"><span className="material-symbols-outlined">chevron_left</span></button>
+          <h2 className="text-base font-black">{currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월</h2>
+          <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="size-8 flex items-center justify-center hover:bg-gray-50 rounded-xl"><span className="material-symbols-outlined">chevron_right</span></button>
         </div>
-      </section>
-
-      <div className="px-6 space-y-4">
-        <h3 className="text-lg font-bold flex items-center gap-2">
-          <span className="size-1.5 bg-primary rounded-full"></span>
-          {formatDate(selectedDate)} 상세 내역
-        </h3>
-        {filteredList.length > 0 ? (
-          <div className="grid gap-3">
-            {filteredList.map((item, idx) => (
-              <div 
-                key={idx} 
-                onClick={() => handleEditClick(item)}
-                className="bg-white p-5 rounded-3xl border border-gray-50 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all cursor-pointer active:scale-[0.98]">
-                <div className="size-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500">
-                  <span className="material-symbols-outlined text-3xl">{icon}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-[#0a1931] truncate">
-                    {item['센터'] || '알수없음'} · {item['과목'] || '과목없음'}
-                  </p>
-                  <p className="text-xs text-gray-400 font-medium mt-0.5">
-                    {item['이름'] || '익명'} 강사님 · {item['시간'] || item['타임스탬프']?.split('T')[1]?.substring(0, 5) || '기록없음'}
-                  </p>
-                </div>
-              </div>
+        
+        <div className="flex flex-col pb-6">
+          <div className="grid grid-cols-7 mb-1 shrink-0 text-center px-1">
+            {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
+              <div key={day} className={`text-[10px] font-bold uppercase ${i === 0 ? 'text-rose-400' : 'text-gray-400'}`}>{day}</div>
             ))}
           </div>
-        ) : (
-          <div className="py-20 flex flex-col items-center justify-center bg-white rounded-[2.5rem] border border-dashed border-gray-200">
-            <span className="material-symbols-outlined text-4xl text-gray-100 mb-2">inbox</span>
-            <p className="text-gray-300 font-bold text-sm">기록된 데이터가 없습니다.</p>
+          <div className="grid grid-cols-7 auto-rows-[minmax(75px,auto)] gap-px bg-gray-100 border-t border-gray-100">
+            {calendarDays.map((date, i) => {
+              if (!date) return <div key={`empty-${i}`} className="bg-white h-full w-full"></div>;
+              const dateStr = formatDate(date);
+              const isSelected = dateStr === formatDate(selectedDate);
+              const dayData = groupedData.get(dateStr) || [];
+              
+              // 센터별 색상 매핑 (무지개 색상 계열)
+              const rainbowColors = [
+                'bg-rose-500', 'bg-orange-500', 'bg-amber-500', 
+                'bg-emerald-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500'
+              ];
+              
+              return (
+                <button 
+                  key={i} 
+                  onClick={() => {
+                    setSelectedDate(date);
+                    setIsDetailsModalOpen(true);
+                  }} 
+                  className={`relative bg-white flex flex-col items-center pt-1 pb-1 transition-all overflow-hidden h-full w-full ${isSelected ? 'ring-2 ring-inset ring-primary z-10' : 'hover:bg-gray-50'}`}>
+                  <span className={`text-[10px] font-black mb-0.5 ${isSelected ? 'text-primary' : 'text-gray-600'}`}>{date.getDate()}</span>
+                  
+                  <div className="w-full px-0.5 space-y-px overflow-hidden flex-1">
+                    {dayData.slice(0, 4).map((item, idx) => {
+                      const centerName = item['센터'] || item['지사'] || '알수없음';
+                      const mobileCenterName = centerName.length > 3 ? centerName.substring(0, 3) + '...' : centerName;
+                      // 센터 이름 기반으로 고정된 랜덤 색상 선택
+                      const colorIdx = centerName.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % rainbowColors.length;
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`${rainbowColors[colorIdx]} text-[7px] md:text-[10px] text-white font-bold px-0.5 md:px-1.5 py-0.5 rounded-sm overflow-hidden whitespace-nowrap md:text-ellipsis text-center md:text-left leading-none tracking-tighter md:tracking-normal`}>
+                          <span className="md:hidden">{mobileCenterName}</span>
+                          <span className="hidden md:inline">{centerName}</span>
+                        </div>
+                      );
+                    })}
+                    {dayData.length > 4 && (
+                      <div className="text-[7px] text-gray-400 font-bold text-center leading-none">
+                        +{dayData.length - 4}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        )}
-        <AdBanner slot="2222222222" className="mx-0" />
-      </div>
+        </div>
+      </main>
 
       <button 
         onClick={() => {
@@ -443,12 +420,66 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
           setFormCenter('');
           setFormSubject('');
           setFormTime(''); // 초기값을 비워서 --:-- 로 표시되게 함
+          const y = selectedDate.getFullYear();
+          const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+          setFormDate(`${y}-${m}-00`);
           setIsModalOpen(true);
         }} 
-        className="fixed bottom-36 right-6 size-16 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 z-40 border-4 border-white safe-mb">
+        className="fixed bottom-28 right-6 size-14 bg-primary text-white rounded-full shadow-xl flex items-center justify-center active:scale-90 z-40 safe-mb">
         <span className="material-symbols-outlined text-3xl">add</span>
       </button>
 
+      {/* Details Modal */}
+      {isDetailsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm transition-opacity">
+          <div className="bg-white w-full sm:max-w-md sm:rounded-[2rem] rounded-t-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slide-up sm:animate-fade-in">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white sticky top-0 z-10">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <span className="size-1.5 bg-primary rounded-full"></span>
+                {formatDate(selectedDate)} 상세 내역
+              </h3>
+              <button onClick={() => setIsDetailsModalOpen(false)} className="size-8 flex items-center justify-center bg-gray-50 text-gray-400 hover:text-gray-600 rounded-full transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+              {filteredList.length > 0 ? (
+                <div className="grid gap-3">
+                  {filteredList.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => {
+                        setIsDetailsModalOpen(false);
+                        handleEditClick(item);
+                      }}
+                      className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all cursor-pointer active:scale-[0.98]">
+                      <div className="size-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
+                        <span className="material-symbols-outlined text-2xl">{icon}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[#0a1931] truncate text-sm">
+                          {item['센터'] || '알수없음'} · {item['과목'] || '과목없음'}
+                        </p>
+                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                          {item['이름'] || '익명'} 강사님 · {item['시간'] || item['타임스탬프']?.split('T')[1]?.substring(0, 5) || '기록없음'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-16 flex flex-col items-center justify-center bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                  <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">inbox</span>
+                  <p className="text-gray-400 font-bold text-sm">기록된 데이터가 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center px-4 pb-10 bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-[3rem] p-10 animate-in slide-in-from-bottom duration-500">
@@ -463,9 +494,18 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
                   <span className="text-gray-400 font-bold">작성자 / 지사</span>
                   <span className="text-[#0a1931] font-black">{userData?.name} / {userData?.branch}</span>
                 </div>
-                <div className="flex justify-between items-center text-[11px]">
+                <div className="flex justify-between items-center text-[11px] relative">
                   <span className="text-gray-400 font-bold">날짜</span>
-                  <span className="text-primary font-black text-lg">{formatDate(selectedDate)}</span>
+                  <div className="relative flex items-center justify-end">
+                    <span className="text-primary font-black text-lg mr-1">{formDate}</span>
+                    <input 
+                      type="date"
+                      value={formDate.endsWith('-00') ? '' : formDate}
+                      onChange={(e) => setFormDate(e.target.value)}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-between text-[11px]">
                   <span className="text-gray-400 font-bold">이메일</span>

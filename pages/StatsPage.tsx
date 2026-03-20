@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchSheetData, getCachedSheetData } from '../services/googleSheets';
-import AdBanner from '../components/AdBanner';
 
 const StatsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -110,70 +109,70 @@ const StatsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] pb-44 font-sans">
-      <header className="px-6 pt-12 pb-6 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 shadow-sm safe-top">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/home')} className="size-10 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
-            <span className="material-symbols-outlined font-bold text-gray-400">arrow_back</span>
+      <header className="px-4 pt-6 pb-3 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 safe-top">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/home')} className="size-8 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
+            <span className="material-symbols-outlined font-bold text-lg">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-xl font-black tracking-tight leading-none text-[#0a1931]">통계방</h1>
-            <p className="text-[9px] text-blue-500 font-black uppercase tracking-[0.2em] mt-1">Analytics Hub</p>
+            <h1 className="text-lg font-black tracking-tight leading-none">통계방</h1>
+            <p className="text-[8px] text-blue-500 font-black uppercase tracking-[0.2em] mt-1">Analytics Hub</p>
           </div>
         </div>
       </header>
 
-      <main className="px-6 py-8 space-y-8">
+      <div className="px-6 py-6 space-y-4">
         {/* 1. 실시간 활동 요약 (Top Summary) */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-black text-[#0a1931] flex items-center gap-2">
-              <span className="material-symbols-outlined text-blue-500">monitoring</span>
-              {currentDate.getMonth() + 1}월 활동 요약
-            </h2>
-            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-              <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="text-gray-400 hover:text-blue-500 transition-colors">
-                <span className="material-symbols-outlined text-sm">arrow_back_ios_new</span>
-              </button>
-              <span className="text-xs font-bold w-12 text-center">{currentDate.getFullYear()}.{String(currentDate.getMonth() + 1).padStart(2, '0')}</span>
-              <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="text-gray-400 hover:text-blue-500 transition-colors">
-                <span className="material-symbols-outlined text-sm">arrow_forward_ios</span>
-              </button>
+        <div className="flex items-center justify-between mt-2 mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <span className="size-1.5 bg-blue-500 rounded-full"></span>
+            {currentDate.getMonth() + 1}월 활동 요약
+          </h3>
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
+            <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="text-gray-400 hover:text-blue-500 transition-colors">
+              <span className="material-symbols-outlined text-sm">arrow_back_ios_new</span>
+            </button>
+            <span className="text-xs font-bold w-12 text-center">{currentDate.getFullYear()}.{String(currentDate.getMonth() + 1).padStart(2, '0')}</span>
+            <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="text-gray-400 hover:text-blue-500 transition-colors">
+              <span className="material-symbols-outlined text-sm">arrow_forward_ios</span>
+            </button>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-5 text-white shadow-lg shadow-blue-500/20 flex flex-col justify-between aspect-square relative overflow-hidden">
+            <span className="material-symbols-outlined absolute -right-2 -bottom-2 text-6xl text-white/10">school</span>
+            <span className="text-[10px] font-bold text-blue-100">당월 총 수업</span>
+            <div className="mt-auto">
+              <span className="text-3xl font-black">{stats.totalCurrentMonth}</span>
+              <span className="text-xs ml-1 opacity-80">회</span>
             </div>
           </div>
-          
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[2rem] p-5 text-white shadow-lg shadow-blue-500/20 flex flex-col justify-between aspect-square relative overflow-hidden">
-              <span className="material-symbols-outlined absolute -right-2 -bottom-2 text-6xl text-white/10">school</span>
-              <span className="text-[10px] font-bold text-blue-100">당월 총 수업</span>
-              <div className="mt-auto">
-                <span className="text-3xl font-black">{stats.totalCurrentMonth}</span>
-                <span className="text-xs ml-1 opacity-80">회</span>
-              </div>
-            </div>
-            <div className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm flex flex-col justify-between aspect-square">
-              <span className="text-[10px] font-bold text-gray-400">활동 강사</span>
-              <div className="mt-auto">
-                <span className="text-2xl font-black text-[#0a1931]">{stats.activeTeachers}</span>
-                <span className="text-xs text-gray-400 ml-1">명</span>
-              </div>
-            </div>
-            <div className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm flex flex-col justify-between aspect-square">
-              <span className="text-[10px] font-bold text-gray-400">이달의 우수</span>
-              <div className="mt-auto">
-                <span className="text-sm font-black text-amber-500 truncate block">{stats.topTeacher}</span>
-                <span className="text-[9px] text-gray-400 mt-0.5 block">강사님</span>
-              </div>
+          <div className="bg-white rounded-3xl p-5 border border-blue-100 shadow-sm flex flex-col justify-between aspect-square">
+            <span className="text-[10px] font-bold text-gray-400">활동 강사</span>
+            <div className="mt-auto">
+              <span className="text-2xl font-black text-[#0a1931]">{stats.activeTeachers}</span>
+              <span className="text-xs text-gray-400 ml-1">명</span>
             </div>
           </div>
-        </section>
+          <div className="bg-white rounded-3xl p-5 border border-blue-100 shadow-sm flex flex-col justify-between aspect-square">
+            <span className="text-[10px] font-bold text-gray-400">이달의 우수</span>
+            <div className="mt-auto">
+              <span className="text-sm font-black text-amber-500 truncate block">{stats.topTeacher}</span>
+              <span className="text-[9px] text-gray-400 mt-0.5 block">강사님</span>
+            </div>
+          </div>
+        </div>
 
         {/* 2. 강사별 수업 횟수 랭킹 (Visual Chart) */}
-        <section className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100">
-          <h2 className="text-lg font-black text-[#0a1931] mb-6 flex items-center gap-2">
-            <span className="material-symbols-outlined text-amber-500">social_leaderboard</span>
+        <div className="flex items-center justify-between mt-8 mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <span className="size-1.5 bg-blue-500 rounded-full"></span>
             명예의 전당 (Top 5)
-          </h2>
-          
+          </h3>
+        </div>
+        
+        <div className="bg-white p-5 rounded-3xl border border-blue-100 shadow-sm">
           <div className="space-y-5">
             {stats.list.slice(0, 5).map((teacher, idx) => (
               <div key={teacher.name} className="flex items-center gap-3 group">
@@ -203,64 +202,63 @@ const StatsPage: React.FC = () => {
               </div>
             )}
           </div>
-        </section>
+        </div>
 
         {/* 3. 상세 통계 테이블 (Detailed Data) */}
-        <section>
-          <h2 className="text-lg font-black text-[#0a1931] mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-500">table_chart</span>
+        <div className="flex items-center justify-between mt-8 mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <span className="size-1.5 bg-blue-500 rounded-full"></span>
             전체 강사 통계
-          </h2>
-          <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50">
-                    <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">강사명</th>
-                    <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">담당 프로그램</th>
-                    <th className="px-5 py-4 text-[10px] font-bold text-blue-500 uppercase tracking-wider text-right whitespace-nowrap">당월 수업</th>
-                    <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">누적 수업</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {stats.list.map((teacher, idx) => (
-                    <tr key={teacher.name} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div className="size-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-500">
-                            {teacher.name.substring(0, 1)}
-                          </div>
-                          <span className="text-sm font-bold text-[#0a1931]">{teacher.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md bg-gray-50 text-[10px] font-bold text-gray-500 whitespace-nowrap">
-                          {teacher.subjectStr}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <span className="text-sm font-black text-blue-500">{teacher.currentMonthCount}</span>
-                      </td>
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <span className="text-sm font-bold text-gray-400">{teacher.totalCount}</span>
-                      </td>
-                    </tr>
-                  ))}
-                  {stats.list.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-400 font-medium">
-                        데이터가 없습니다.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+          </h3>
+        </div>
         
-        <AdBanner slot="4444444444" className="mx-0 mt-8" />
-      </main>
+        <div className="bg-white rounded-3xl shadow-sm border border-blue-100 overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-blue-50/50">
+                  <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">강사명</th>
+                  <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">담당 프로그램</th>
+                  <th className="px-5 py-4 text-[10px] font-bold text-blue-500 uppercase tracking-wider text-right whitespace-nowrap">당월 수업</th>
+                  <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">누적 수업</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-blue-50">
+                {stats.list.map((teacher, idx) => (
+                  <tr key={teacher.name} className="hover:bg-blue-50/30 transition-colors">
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div className="size-8 rounded-full bg-blue-50 flex items-center justify-center text-xs font-black text-blue-500">
+                          {teacher.name.substring(0, 1)}
+                        </div>
+                        <span className="text-sm font-bold text-[#0a1931]">{teacher.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center px-2 py-1 rounded-md bg-gray-50 text-[10px] font-bold text-gray-500 whitespace-nowrap">
+                        {teacher.subjectStr}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right whitespace-nowrap">
+                      <span className="text-sm font-black text-blue-500">{teacher.currentMonthCount}</span>
+                    </td>
+                    <td className="px-5 py-4 text-right whitespace-nowrap">
+                      <span className="text-sm font-bold text-gray-400">{teacher.totalCount}</span>
+                    </td>
+                  </tr>
+                ))}
+                {stats.list.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-400 font-medium">
+                      데이터가 없습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white/90 backdrop-blur-xl safe-bottom">
         <div className="max-w-md mx-auto grid grid-cols-6 items-center h-20">

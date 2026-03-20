@@ -58,13 +58,20 @@
             border-radius: 10px;
         }
         .safe-top {
-            padding-top: env(safe-area-inset-top);
+            padding-top: calc(env(safe-area-inset-top) + 2rem) !important;
         }
         .safe-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
+            padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem) !important;
         }
         .safe-mb {
-            margin-bottom: env(safe-area-inset-bottom);
+            margin-bottom: calc(env(safe-area-inset-bottom) + 0.5rem) !important;
+        }
+        
+        /* 구글 애드센스 전면광고(Vignette) 닫기 버튼이 노치/상태바에 가려지는 현상 수정 */
+        .adsbygoogle-noablate,
+        div[style*="z-index: 2147483647"] {
+            padding-top: env(safe-area-inset-top) !important;
+            box-sizing: border-box !important;
         }
     </style>
 <script type="importmap">

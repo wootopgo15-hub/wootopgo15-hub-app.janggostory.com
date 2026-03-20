@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface AdBannerProps {
   client?: string;
@@ -16,32 +16,65 @@ const AdBanner: React.FC<AdBannerProps> = ({
   responsive = "true",
   className = ""
 }) => {
+  const adRef = useRef<HTMLModElement>(null);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        // @ts-ignore
-        const adsbygoogle = window.adsbygoogle || [];
-        // Only push if there's an unprocessed ins element
-        const unprocessedAds = document.querySelectorAll('ins.adsbygoogle:not([data-adsbygoogle-status])');
-        if (unprocessedAds.length > 0) {
+    let pushed = false;
+    let observer: ResizeObserver | null = null;
+
+    const pushAd = () => {
+      if (pushed) return;
+      
+      const insElement = adRef.current;
+      if (!insElement) return;
+      
+      // Check if the element or its parent has a width > 0
+      const width = insElement.clientWidth || (insElement.parentElement?.clientWidth || 0);
+      
+      if (width > 0) {
+        try {
+          // @ts-ignore
+          const adsbygoogle = window.adsbygoogle || [];
           adsbygoogle.push({});
-        }
-      } catch (e) {
-        // Silent error for "All ins elements already have ads" as it's common in SPAs
-        if (e instanceof Error && !e.message.includes('already have ads')) {
-          console.error("AdSense error:", e);
+          pushed = true;
+          if (observer) {
+            observer.disconnect();
+          }
+        } catch (e) {
+          if (e instanceof Error && !e.message.includes('already have ads')) {
+            console.error("AdSense error:\n" + e.message);
+          }
         }
       }
-    }, 100); // Small delay to ensure DOM is ready
+    };
 
-    return () => clearTimeout(timer);
-  }, [slot]); // Re-run if slot changes
+    // Try to push immediately (with a small delay for DOM to settle)
+    const timer = setTimeout(() => {
+      pushAd();
+      
+      // If still not pushed (width was 0), observe for resize
+      if (!pushed && adRef.current?.parentElement) {
+        observer = new ResizeObserver(() => {
+          pushAd();
+        });
+        observer.observe(adRef.current.parentElement);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  }, [slot, client, format, responsive]);
 
   return (
-    <div className={`ad-container my-4 overflow-hidden rounded-xl bg-gray-50/50 flex items-center justify-center min-h-[100px] border border-dashed border-gray-200 ${className}`}>
+    <div className={`ad-container relative my-4 overflow-hidden rounded-xl bg-gray-50/50 flex items-center justify-center min-h-[100px] border border-dashed border-gray-200 ${className}`}>
       <ins
+        ref={adRef}
         className="adsbygoogle"
-        style={{ display: 'block', width: '100%' }}
+        style={{ display: 'block', width: '100%', minWidth: '250px' }}
         data-ad-client={client}
         data-ad-slot={slot}
         data-ad-format={format}
