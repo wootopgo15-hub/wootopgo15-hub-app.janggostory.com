@@ -105,6 +105,19 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
     return `${y}-${m}-${d}`;
   };
 
+  const formatDisplayTime = (timeStr: string) => {
+    if (!timeStr) return '';
+    if (timeStr.includes('T')) {
+      const date = new Date(timeStr);
+      if (!isNaN(date.getTime())) {
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+    }
+    return timeStr;
+  };
+
   const groupedData = useMemo(() => {
     const map = new Map<string, any[]>();
     if (!userData) return map;
@@ -227,7 +240,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
     setEditItem(item);
     setFormCenter(item['센터'] || '');
     setFormSubject(item['과목'] || '');
-    setFormTime(item['시간'] || '');
+    setFormTime(formatDisplayTime(item['시간']) || '');
     setIsModalOpen(true);
   };
 
@@ -328,7 +341,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
                     {item['센터'] || '알수없음'} · {item['과목'] || '과목없음'}
                   </p>
                   <p className="text-xs text-gray-400 font-medium mt-0.5">
-                    {item['이름'] || '익명'} 강사님 · {item['시간'] || item['타임스탬프']?.split('T')[1]?.substring(0, 5) || '기록없음'}
+                    {item['이름'] || '익명'} 강사님 · {formatDisplayTime(item['시간']) || item['타임스탬프']?.split('T')[1]?.substring(0, 5) || '기록없음'}
                   </p>
                 </div>
               </div>
@@ -357,8 +370,8 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
       </button>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center px-4 pb-10 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-[3rem] p-10 animate-in slide-in-from-bottom duration-500">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-[2rem] p-6 sm:p-10 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-black">{editItem ? '보고서 수정' : `${title} 작성`}</h2>
               <button onClick={() => setIsModalOpen(false)} className="size-10 rounded-xl bg-gray-50 flex items-center justify-center"><span className="material-symbols-outlined">close</span></button>

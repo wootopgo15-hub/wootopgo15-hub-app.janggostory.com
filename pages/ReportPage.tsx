@@ -16,6 +16,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dataList, setDataList] = useState<any[]>([]);
   const [centerList, setCenterList] = useState<any[]>([]);
+  const [userList, setUserList] = useState<any[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,8 +28,12 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
   const [formSubject, setFormSubject] = useState('');
   const [formTime, setFormTime] = useState('');
   const [formDate, setFormDate] = useState('');
+  const [formAuthorName, setFormAuthorName] = useState('');
+  const [formAuthorEmail, setFormAuthorEmail] = useState('');
+  const [formAuthorBranch, setFormAuthorBranch] = useState('');
   const [showCenterSuggestions, setShowCenterSuggestions] = useState(false);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // 센터 추가 모달 상태
   const [isAddCenterModalOpen, setIsAddCenterModalOpen] = useState(false);
@@ -82,10 +87,16 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
     if (cachedCenters.length > 0) {
       setCenterList(cachedCenters);
     }
+
+    const cachedUsers = getCachedSheetData('USER');
+    if (cachedUsers.length > 0) {
+      setUserList(cachedUsers);
+    }
     
     // 2. 최신 데이터 백그라운드 로드
     loadData();
     loadCenterList();
+    loadUserList();
   }, [type]);
 
   const loadData = async (force: boolean = false) => {
@@ -114,11 +125,33 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
     }
   };
 
+  const loadUserList = async (force: boolean = false) => {
+    try {
+      const users = await fetchSheetData('USER', force);
+      setUserList(users);
+    } catch (error) {
+      console.error("Failed to load user list:", error);
+    }
+  };
+
   const formatDate = (date: Date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  };
+
+  const formatDisplayTime = (timeStr: string) => {
+    if (!timeStr) return '';
+    if (timeStr.includes('T')) {
+      const date = new Date(timeStr);
+      if (!isNaN(date.getTime())) {
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+    }
+    return timeStr;
   };
 
   const groupedData = useMemo(() => {
@@ -223,13 +256,13 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
     const payload: any = {
       type: type,
       mode: editItem ? 'UPDATE' : 'APPEND',
-      '이름': userData.name, // 이름(자동)
+      '이름': formAuthorName || userData.name, // 이름(자동/선택)
       '날짜': formDate, // 날짜(입력)
       '시간': formTime, // 시간(입력)
       '센터': formCenter, // 센터(입력)
       '과목': formSubject, // 과목(입력)
-      '지사': userData.branch, // 지사(자동)
-      '이메일': userData.email, // 이메일(자동)
+      '지사': formAuthorBranch || userData.branch, // 지사(자동/선택)
+      '이메일': formAuthorEmail || userData.email, // 이메일(자동/선택)
       '타임스탬프': editItem ? editItem['타임스탬프'] : now.toISOString(),
     };
 
@@ -275,8 +308,11 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
     setEditItem(item);
     setFormCenter(item['센터'] || '');
     setFormSubject(item['과목'] || '');
-    setFormTime(item['시간'] || '');
+    setFormTime(formatDisplayTime(item['시간']) || '');
     setFormDate(item['날짜'] || formatDate(selectedDate));
+    setFormAuthorName(item['이름'] || userData?.name || '');
+    setFormAuthorEmail(item['이메일'] || userData?.email || '');
+    setFormAuthorBranch(item['지사'] || userData?.branch || '');
     setIsModalOpen(true);
   };
 
@@ -423,6 +459,9 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
           const y = selectedDate.getFullYear();
           const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
           setFormDate(`${y}-${m}-00`);
+          setFormAuthorName(userData?.name || '');
+          setFormAuthorEmail(userData?.email || '');
+          setFormAuthorBranch(userData?.branch || '');
           setIsModalOpen(true);
         }} 
         className="fixed bottom-28 right-6 size-14 bg-primary text-white rounded-full shadow-xl flex items-center justify-center active:scale-90 z-40 safe-mb">
@@ -431,8 +470,8 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
 
       {/* Details Modal */}
       {isDetailsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm transition-opacity">
-          <div className="bg-white w-full sm:max-w-md sm:rounded-[2rem] rounded-t-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slide-up sm:animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
+          <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-fade-in">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white sticky top-0 z-10">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <span className="size-1.5 bg-primary rounded-full"></span>
@@ -462,7 +501,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
                           {item['센터'] || '알수없음'} · {item['과목'] || '과목없음'}
                         </p>
                         <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                          {item['이름'] || '익명'} 강사님 · {item['시간'] || item['타임스탬프']?.split('T')[1]?.substring(0, 5) || '기록없음'}
+                          {item['이름'] || '익명'} 강사님 · {formatDisplayTime(item['시간']) || item['타임스탬프']?.split('T')[1]?.substring(0, 5) || '기록없음'}
                         </p>
                       </div>
                     </div>
@@ -481,8 +520,8 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center px-4 pb-10 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-[3rem] p-10 animate-in slide-in-from-bottom duration-500">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-[2rem] p-6 sm:p-10 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-black">{editItem ? '보고서 수정' : `${title} 작성`}</h2>
               <button onClick={() => setIsModalOpen(false)} className="size-10 rounded-xl bg-gray-50 flex items-center justify-center"><span className="material-symbols-outlined">close</span></button>
@@ -490,39 +529,62 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
             <form onSubmit={handleAddData} className="space-y-5">
               {/* 자동 입력 정보 표시 */}
               <div className="bg-gray-50 rounded-2xl p-4 space-y-2 border border-gray-100">
-                <div className="flex justify-between text-[11px]">
+                <div className="flex justify-between items-center text-[11px]">
                   <span className="text-gray-400 font-bold">작성자 / 지사</span>
-                  <span className="text-[#0a1931] font-black">{userData?.name} / {userData?.branch}</span>
+                  {(userData?.role === '관리자' || userData?.role === '부관리자') ? (
+                    <select
+                      value={formAuthorName}
+                      onChange={(e) => {
+                        const selectedName = e.target.value;
+                        setFormAuthorName(selectedName);
+                        const selectedUser = userList.find(u => u['이름'] === selectedName);
+                        if (selectedUser) {
+                          setFormAuthorEmail(selectedUser['이메일'] || '');
+                          setFormAuthorBranch(selectedUser['지사'] || '');
+                        }
+                      }}
+                      className="bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-[#0a1931] font-black outline-none focus:ring-2 focus:ring-primary/20 max-w-[160px] truncate"
+                    >
+                      {userList
+                        .filter(u => userData.role === '관리자' || u['지사'] === userData.branch)
+                        .map((u, idx) => (
+                          <option key={idx} value={u['이름']}>{u['이름']} / {u['지사']}</option>
+                        ))}
+                    </select>
+                  ) : (
+                    <span className="text-[#0a1931] font-black">{formAuthorName} / {formAuthorBranch}</span>
+                  )}
                 </div>
-                <div className="flex justify-between items-center text-[11px] relative">
-                  <span className="text-gray-400 font-bold">날짜</span>
-                  <div className="relative flex items-center justify-end">
-                    <span className="text-primary font-black text-lg mr-1">{formDate}</span>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-gray-400 font-bold">이메일</span>
+                  <span className="text-[#0a1931] font-black">{formAuthorEmail}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[#0a1931] ml-2">날짜 <span className="text-rose-500">*</span></label>
+                  <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all">
                     <input 
                       type="date"
                       value={formDate.endsWith('-00') ? '' : formDate}
                       onChange={(e) => setFormDate(e.target.value)}
-                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      className="w-full h-full px-5 bg-transparent border-none outline-none font-bold text-sm cursor-pointer"
                       required
                     />
                   </div>
                 </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-gray-400 font-bold">이메일</span>
-                  <span className="text-[#0a1931] font-black">{userData?.email}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#0a1931] ml-2">시간 <span className="text-rose-500">*</span></label>
-                <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all">
-                  <input 
-                    type="time"
-                    value={formTime} 
-                    onChange={(e) => setFormTime(e.target.value)} 
-                    className="w-full h-full px-5 bg-transparent border-none outline-none font-bold text-sm cursor-pointer" 
-                    required 
-                  />
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[#0a1931] ml-2">시간 <span className="text-rose-500">*</span></label>
+                  <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+                    <input 
+                      type="time"
+                      value={formTime} 
+                      onChange={(e) => setFormTime(e.target.value)} 
+                      className="w-full h-full px-5 bg-transparent border-none outline-none font-bold text-sm cursor-pointer" 
+                      required 
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -575,9 +637,20 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
                 </div>
               </div>
 
-              <button type="submit" disabled={loading} className="w-full h-16 bg-primary text-white font-black rounded-2xl shadow-lg active:scale-[0.98] disabled:opacity-50 transition-all">
-                {loading ? "전송 중..." : editItem ? "보고서 수정하기" : "보고서 등록하기"}
-              </button>
+              <div className="flex gap-3">
+                {editItem && (
+                  <button 
+                    type="button" 
+                    disabled={loading} 
+                    onClick={() => setConfirmDelete(true)}
+                    className="w-1/3 h-16 bg-rose-50 text-rose-500 font-black rounded-2xl active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center">
+                    삭제
+                  </button>
+                )}
+                <button type="submit" disabled={loading} className={`${editItem ? 'w-2/3' : 'w-full'} h-16 bg-primary text-white font-black rounded-2xl shadow-lg active:scale-[0.98] disabled:opacity-50 transition-all`}>
+                  {loading ? "처리 중..." : editItem ? "보고서 수정하기" : "보고서 등록하기"}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -698,6 +771,60 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
             >
               확인
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4 text-rose-500">
+              <span className="material-symbols-outlined text-3xl">warning</span>
+              <h3 className="text-lg font-black text-[#111318]">보고서 삭제</h3>
+            </div>
+            <p className="text-[#4a5568] font-medium leading-relaxed mb-6">
+              정말 이 보고서를 삭제하시겠습니까? 삭제된 데이터는 복구할 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-[#111318] font-black rounded-2xl transition-colors active:scale-[0.98]"
+              >
+                취소
+              </button>
+              <button 
+                onClick={async () => {
+                  setConfirmDelete(false);
+                  setLoading(true);
+                  try {
+                    const payload = {
+                      type: type,
+                      mode: 'DELETE',
+                      '타임스탬프': editItem['타임스탬프']
+                    };
+                    
+                    // 낙관적 업데이트 (화면에서 즉시 제거)
+                    const updatedList = dataList.filter(item => item['타임스탬프'] !== editItem['타임스탬프']);
+                    setDataList(updatedList);
+                    setIsModalOpen(false);
+                    setModalMessage("보고서가 삭제되었습니다.");
+                    
+                    await submitToGoogleSheets(payload);
+                    loadData(true);
+                  } catch (err: any) {
+                    console.error('Delete Error:', err);
+                    setModalMessage(`삭제에 실패했습니다: ${err.message || '알 수 없는 오류'}`);
+                    loadData(true);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl transition-colors active:scale-[0.98]"
+              >
+                삭제하기
+              </button>
+            </div>
           </div>
         </div>
       )}

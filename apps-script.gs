@@ -173,6 +173,8 @@ function doPost(e) {
         return handleAppend(data);
       case 'UPDATE':
         return handleUpdate(data);
+      case 'DELETE':
+        return handleDelete(data);
       case 'UPDATE_USER':
         return handleUpdateUser(data);
       default:
@@ -328,6 +330,42 @@ function handleUpdate(data) {
     return createJsonResponse({ result: "success", message: "UPDATE Success" });
   } else {
     return createJsonResponse({ result: "error", message: "Row to update not found" });
+  }
+}
+
+function handleDelete(data) {
+  const sheetName = SHEET_MAP[data.type];
+  if (!sheetName) return createJsonResponse({ result: "error", message: "Invalid sheet type for DELETE" });
+
+  const sheet = getActiveSheetByName(sheetName);
+  if (!sheet) return createJsonResponse({ result: "error", message: `${sheetName} sheet not found` });
+
+  const sheetData = sheet.getDataRange().getValues();
+  const headers = sheetData[0];
+  const timestampIndex = headers.indexOf('타임스탬프');
+
+  if (timestampIndex === -1) {
+    return createJsonResponse({ result: "error", message: "타임스탬프 column not found" });
+  }
+
+  const targetTimestamp = data['타임스탬프'] || data.timestamp;
+  const rowIndex = sheetData.findIndex(row => {
+    if (!row[timestampIndex]) return false;
+    if (row[timestampIndex] === targetTimestamp) return true;
+    try {
+      const sheetTime = new Date(row[timestampIndex]).getTime();
+      const targetTime = new Date(targetTimestamp).getTime();
+      return sheetTime === targetTime;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  if (rowIndex > 0) {
+    sheet.deleteRow(rowIndex + 1);
+    return createJsonResponse({ result: "success", message: "DELETE Success" });
+  } else {
+    return createJsonResponse({ result: "error", message: "Row to delete not found" });
   }
 }
 

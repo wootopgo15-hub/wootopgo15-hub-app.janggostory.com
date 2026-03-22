@@ -388,8 +388,8 @@ const PropsOffPage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center px-4 pb-10 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-[3rem] p-8 animate-in slide-in-from-bottom duration-500 max-h-[85vh] overflow-y-auto custom-scrollbar">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-[2rem] p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black">
                 {modalMode === 'PROP' ? '주간 교구 등록' : (editItem ? '쉬는 날 수정' : '다음주 쉬는 날 등록')}

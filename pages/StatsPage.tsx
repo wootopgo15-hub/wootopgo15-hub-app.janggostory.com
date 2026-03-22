@@ -143,16 +143,16 @@ const StatsPage: React.FC = () => {
           <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-5 text-white shadow-lg shadow-blue-500/20 flex flex-col justify-between aspect-square relative overflow-hidden">
             <span className="material-symbols-outlined absolute -right-2 -bottom-2 text-6xl text-white/10">school</span>
             <span className="text-[10px] font-bold text-blue-100">당월 총 수업</span>
-            <div className="mt-auto">
-              <span className="text-3xl font-black">{stats.totalCurrentMonth}</span>
-              <span className="text-xs ml-1 opacity-80">회</span>
+            <div className="mt-auto flex items-start">
+              <span className="text-2xl font-black leading-none">{stats.totalCurrentMonth}</span>
+              <span className="text-[10px] ml-0.5 mt-0.5 opacity-80 font-bold">회</span>
             </div>
           </div>
           <div className="bg-white rounded-3xl p-5 border border-blue-100 shadow-sm flex flex-col justify-between aspect-square">
             <span className="text-[10px] font-bold text-gray-400">활동 강사</span>
-            <div className="mt-auto">
-              <span className="text-2xl font-black text-[#0a1931]">{stats.activeTeachers}</span>
-              <span className="text-xs text-gray-400 ml-1">명</span>
+            <div className="mt-auto flex items-start">
+              <span className="text-2xl font-black text-[#0a1931] leading-none">{stats.activeTeachers}</span>
+              <span className="text-[10px] text-gray-400 ml-0.5 mt-0.5 font-bold">명</span>
             </div>
           </div>
           <div className="bg-white rounded-3xl p-5 border border-blue-100 shadow-sm flex flex-col justify-between aspect-square">
@@ -213,49 +213,37 @@ const StatsPage: React.FC = () => {
         </div>
         
         <div className="bg-white rounded-3xl shadow-sm border border-blue-100 overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-blue-50/50">
-                  <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">강사명</th>
-                  <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">담당 프로그램</th>
-                  <th className="px-5 py-4 text-[10px] font-bold text-blue-500 uppercase tracking-wider text-right whitespace-nowrap">당월 수업</th>
-                  <th className="px-5 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">누적 수업</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-blue-50">
-                {stats.list.map((teacher, idx) => (
-                  <tr key={teacher.name} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div className="size-8 rounded-full bg-blue-50 flex items-center justify-center text-xs font-black text-blue-500">
-                          {teacher.name.substring(0, 1)}
-                        </div>
-                        <span className="text-sm font-bold text-[#0a1931]">{teacher.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-md bg-gray-50 text-[10px] font-bold text-gray-500 whitespace-nowrap">
-                        {teacher.subjectStr}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right whitespace-nowrap">
-                      <span className="text-sm font-black text-blue-500">{teacher.currentMonthCount}</span>
-                    </td>
-                    <td className="px-5 py-4 text-right whitespace-nowrap">
-                      <span className="text-sm font-bold text-gray-400">{teacher.totalCount}</span>
-                    </td>
-                  </tr>
-                ))}
-                {stats.list.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-400 font-medium">
-                      데이터가 없습니다.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="divide-y divide-blue-50">
+            {stats.list.map((teacher, idx) => (
+              <div key={teacher.name} className="flex items-center justify-between p-4 hover:bg-blue-50/30 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-full bg-blue-50 flex items-center justify-center text-sm font-black text-blue-500 shrink-0">
+                    {teacher.name.substring(0, 1)}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-[#0a1931]">{teacher.name}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 mt-1 rounded-md bg-gray-50 text-[10px] font-bold text-gray-500 w-fit">
+                      {teacher.subjectStr}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-right">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-blue-500/70">당월</span>
+                    <span className="text-base font-black text-blue-500">{teacher.currentMonthCount}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-gray-400">누적</span>
+                    <span className="text-sm font-bold text-gray-400">{teacher.totalCount}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {stats.list.length === 0 && (
+              <div className="p-8 text-center text-sm text-gray-400 font-medium">
+                데이터가 없습니다.
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -98,9 +98,9 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
     if (!searchQuery.trim()) return dataList;
     const q = searchQuery.toLowerCase();
     return dataList.filter(item => 
-      (item['제목'] || '').toLowerCase().includes(q) || 
-      (item['메시지 내용'] || '').toLowerCase().includes(q) ||
-      (item['작성자'] || '').toLowerCase().includes(q)
+      String(item['제목'] || '').toLowerCase().includes(q) || 
+      String(item['메시지 내용'] || '').toLowerCase().includes(q) ||
+      String(item['작성자'] || '').toLowerCase().includes(q)
     );
   }, [dataList, searchQuery]);
 
@@ -478,26 +478,38 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
                       setSelectedPost(item);
                       setViewMode('DETAIL');
                     }}
-                    className="w-full p-5 flex flex-col items-start gap-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors text-left"
+                    className="w-full p-5 flex justify-between items-center gap-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors text-left"
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded uppercase tracking-wider">
-                        {item['지사'] || '본사'}
-                      </span>
-                      <span className="text-[10px] text-gray-400 font-medium">{item['작성일시']}</span>
-                    </div>
-                    <h3 className="text-[#0a1931] font-bold text-base line-clamp-1 leading-tight">
-                      {item['제목'] || item['메시지 내용']?.split('\n')[0] || '제목 없음'}
-                    </h3>
-                    <div className="flex items-center justify-between w-full mt-1">
+                    <div className="flex flex-col items-start flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded uppercase tracking-wider">
+                          {item['지사'] || '본사'}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-medium">{item['작성일시']}</span>
+                      </div>
+                      <h3 className="text-[#0a1931] font-bold text-base line-clamp-1 leading-tight mb-2">
+                        {item['제목'] || String(item['메시지 내용'] || '').split('\n')[0] || '제목 없음'}
+                      </h3>
                       <span className="text-xs text-gray-500 font-medium flex items-center gap-1">
                         <span className="material-symbols-outlined text-sm">person</span>
                         {item['작성자']}
                       </span>
-                      {item['미디어/사진'] && (
-                        <span className="material-symbols-outlined text-gray-300 text-lg">image</span>
-                      )}
                     </div>
+                    {item['미디어/사진'] && (
+                      <div className="size-16 rounded-xl overflow-hidden shrink-0 bg-gray-100 border border-gray-200">
+                        {isImage(item['미디어/사진']) ? (
+                          <img src={item['미디어/사진']} alt="preview" className="size-full object-cover" referrerPolicy="no-referrer" />
+                        ) : isVideo(item['미디어/사진']) ? (
+                          <div className="size-full flex items-center justify-center bg-gray-100">
+                            <span className="material-symbols-outlined text-gray-400">videocam</span>
+                          </div>
+                        ) : (
+                          <div className="size-full flex items-center justify-center bg-gray-100">
+                            <span className="material-symbols-outlined text-gray-400">attach_file</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
@@ -521,7 +533,7 @@ const ForumPage: React.FC<Props> = ({ title = "소통방", type = "FORUM", icon 
                   <span className="text-xs text-gray-400 font-medium">{selectedPost['작성일시']}</span>
                 </div>
                 <h2 className="text-2xl font-black text-[#0a1931] leading-tight">
-                  {selectedPost['제목'] || selectedPost['메시지 내용']?.split('\n')[0] || '제목 없음'}
+                  {selectedPost['제목'] || String(selectedPost['메시지 내용'] || '').split('\n')[0] || '제목 없음'}
                 </h2>
                 <div className="flex items-center gap-3 py-4 border-y border-gray-50">
                   <div className="size-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
