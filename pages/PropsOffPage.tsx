@@ -153,21 +153,24 @@ const PropsOffPage: React.FC = () => {
     
     let payload: any = {
       type: 'PROPS_OFF',
-      '이름': userData.name,
-      '지사': userData.branch,
-      '부서': userData.department,
-      '이메일': userData.email,
+      '이름': editItem ? editItem['이름'] : userData.name,
+      '지사': editItem ? editItem['지사'] : userData.branch,
+      '부서': editItem ? editItem['부서'] : userData.department,
+      '이메일': editItem ? editItem['이메일'] : userData.email,
     };
 
     if (modalMode === 'PROP') {
-      payload.mode = 'APPEND';
+      payload.mode = editItem ? 'UPDATE' : 'APPEND';
       payload['주차'] = week;
       payload['교구명'] = propName;
       payload['정상수량'] = normalQuantity;
       payload['파손수량'] = brokenQuantity;
       payload['분실수량'] = lostQuantity;
-      payload['타임스탬프'] = now.toISOString();
-      payload.timestamp = now.toISOString();
+      payload['타임스탬프'] = editItem ? editItem['타임스탬프'] : now.toISOString();
+      payload.timestamp = payload['타임스탬프'];
+      if (editItem) {
+        payload['쉬는날'] = editItem['쉬는날'] || '';
+      }
     } else {
       payload.mode = editItem ? 'UPDATE' : 'APPEND';
       payload['쉬는날'] = offDays.join(', ');
@@ -308,6 +311,7 @@ const PropsOffPage: React.FC = () => {
               setBrokenQuantity('');
               setLostQuantity('');
               setWeek('1주차');
+              setEditItem(null);
               setModalMode('PROP');
               setIsModalOpen(true);
             }}
@@ -343,9 +347,28 @@ const PropsOffPage: React.FC = () => {
                       <p className="text-[10px] text-gray-400 font-bold">{item['지사']} · {item['부서']}</p>
                     </div>
                   </div>
-                  <span className="text-[10px] text-gray-400 font-medium">
-                    {new Date(item['타임스탬프']).toLocaleDateString()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      {new Date(item['타임스탬프']).toLocaleDateString()}
+                    </span>
+                    {(String(userData?.name || '').trim() === String(item['이름'] || '').trim() || String(userData?.role || '').trim() === '관리자' || String(userData?.role || '').trim() === '부관리자') && (
+                      <button
+                        onClick={() => {
+                          setPropName(item['교구명'] || '');
+                          setNormalQuantity(item['정상수량'] || '');
+                          setBrokenQuantity(item['파손수량'] || '');
+                          setLostQuantity(item['분실수량'] || '');
+                          setWeek(item['주차'] || '1주차');
+                          setEditItem(item);
+                          setModalMode('PROP');
+                          setIsModalOpen(true);
+                        }}
+                        className="p-1 text-gray-400 hover:text-[#0a1931] transition-colors rounded-lg hover:bg-gray-100"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="space-y-2">
@@ -392,7 +415,7 @@ const PropsOffPage: React.FC = () => {
           <div className="w-full max-w-md bg-white rounded-[2rem] p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black">
-                {modalMode === 'PROP' ? '주간 교구 등록' : (editItem ? '쉬는 날 수정' : '다음주 쉬는 날 등록')}
+                {modalMode === 'PROP' ? (editItem ? '주간 교구 수정' : '주간 교구 등록') : (editItem ? '쉬는 날 수정' : '다음주 쉬는 날 등록')}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="size-10 rounded-xl bg-gray-50 flex items-center justify-center"><span className="material-symbols-outlined">close</span></button>
             </div>
@@ -505,7 +528,7 @@ const PropsOffPage: React.FC = () => {
               )}
 
               <button type="submit" disabled={loading} className="w-full h-14 bg-rose-500 text-white font-black rounded-2xl shadow-lg shadow-rose-500/30 active:scale-[0.98] disabled:opacity-50 transition-all mt-4">
-                {loading ? "등록 중..." : (editItem ? "수정하기" : "등록하기")}
+                {loading ? (editItem ? "수정 중..." : "등록 중...") : (editItem ? "수정하기" : "등록하기")}
               </button>
             </form>
           </div>

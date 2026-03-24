@@ -798,14 +798,22 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
                   setConfirmDelete(false);
                   setLoading(true);
                   try {
+                    const targetId = editItem['타임스탬프'] || editItem['timestamp'];
+                    if (!targetId) {
+                      setConfirmDelete(false);
+                      setModalMessage("삭제할 수 없는 항목입니다 (식별자 없음).");
+                      return;
+                    }
+
                     const payload = {
                       type: type,
                       mode: 'DELETE',
-                      '타임스탬프': editItem['타임스탬프']
+                      '타임스탬프': targetId,
+                      timestamp: targetId
                     };
                     
                     // 낙관적 업데이트 (화면에서 즉시 제거)
-                    const updatedList = dataList.filter(item => item['타임스탬프'] !== editItem['타임스탬프']);
+                    const updatedList = dataList.filter(item => (item['타임스탬프'] || item['timestamp']) !== targetId);
                     setDataList(updatedList);
                     setIsModalOpen(false);
                     setModalMessage("보고서가 삭제되었습니다.");

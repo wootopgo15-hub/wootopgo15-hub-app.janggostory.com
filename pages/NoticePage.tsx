@@ -128,8 +128,12 @@ const NoticePage: React.FC<Props> = ({ title = "공지방", type = "NOTICE", ico
   };
 
   const handleEditClick = (item: any) => {
-    // 관리자만 수정 가능하도록 제한 (원하는 경우)
-    if (userData.role !== '관리자' && item['이메일'] !== userData.email) {
+    // 관리자 및 부관리자 수정 가능하도록 제한 (부관리자는 본인 지사 또는 본인 작성글만)
+    const canEdit = userData.role === '관리자' || 
+                    (userData.role === '부관리자' && (item['지사'] === userData.branch || item['이메일'] === userData.email)) || 
+                    item['이메일'] === userData.email;
+                    
+    if (!canEdit) {
       return;
     }
     setEditItem(item);
@@ -199,8 +203,8 @@ const NoticePage: React.FC<Props> = ({ title = "공지방", type = "NOTICE", ico
         )}
       </main>
 
-      {/* 관리자만 등록 버튼 노출 (원하는 경우) */}
-      {userData?.role === '관리자' && (
+      {/* 관리자 및 부관리자 등록 버튼 노출 */}
+      {(userData?.role === '관리자' || userData?.role === '부관리자') && (
         <button 
           onClick={() => {
             setEditItem(null);
@@ -253,7 +257,8 @@ const NoticePage: React.FC<Props> = ({ title = "공지방", type = "NOTICE", ico
                   <select 
                     value={formBranch} 
                     onChange={(e) => setFormBranch(e.target.value)} 
-                    className="w-full h-14 px-6 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all appearance-none"
+                    disabled={userData?.role === '부관리자'}
+                    className="w-full h-14 px-6 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all appearance-none disabled:opacity-50"
                   >
                     <option value="전체">전체</option>
                     <option value="본사">본사</option>
