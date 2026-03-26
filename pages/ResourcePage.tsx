@@ -204,14 +204,14 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
                     }`}>
                       {item['승인'] || '대기'}
                     </span>
-                    <span className="text-[9px] text-gray-300 font-bold">{item['지사'] || '전체'}</span>
+                    <span className="text-[9px] text-gray-500 font-bold">{item['지사'] || '전체'}</span>
                   </div>
                   
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-black text-[#0a1931] truncate leading-tight">{item['과목']}</h3>
                   </div>
                   
-                  <p className="text-[10px] text-gray-300 font-bold mt-0.5 mb-2">
+                  <p className="text-[10px] text-gray-500 font-bold mt-0.5 mb-2">
                     {item['이름']} · <span className="font-medium">{item['이메일']}</span>
                   </p>
                   <div className="flex flex-wrap gap-2 mt-2">

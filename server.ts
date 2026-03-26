@@ -32,7 +32,7 @@ async function createServer() {
       try {
         const data = JSON.parse(message.toString());
         if (data.type === 'LOGIN') {
-          clients.set(ws, { name: data.name, email: data.email });
+          clients.set(ws, { name: data.name, email: data.email, branch: data.branch, department: data.department });
           broadcastUserList();
         }
       } catch (error) {

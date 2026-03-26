@@ -6,22 +6,33 @@
 const SHEET_MAP = {
   'USER': 'USER',
   'NOTICE': 'NOTICE',
-  'REPORT': 'REPORT',
+  'REPORT': 'REPORT', // ★ 중요: 구글 시트 하단의 탭 이름이 정확히 'REPORT'여야 합니다.
   'RESOURCE': 'RESOURCE',
   'FORUM': 'FORUM',
   'STATS': 'STATS',
   'CENTER_LIST': 'CENTER',
-  'DEMENTIA': 'DEMENTIA', // 치매 테스트 전용 시트 매핑
-  'PROPS_OFF': 'PROPS_OFF' // [추가됨] 교구&오프 시트 매핑
+  'DEMENTIA': 'DEMENTIA',
+  'PROPS_OFF': 'PROPS_OFF'
 };
 
 // 현재 연결된 스프레드시트를 자동으로 가져오는 함수
 function getActiveSheetByName(name) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) {
-    throw new Error("활성화된 스프레드시트를 찾을 수 없습니다. 구글 시트 메뉴에서 '확장 프로그램 > Apps Script'를 통해 열었는지 확인하세요.");
+    throw new Error("활성화된 스프레드시트를 찾을 수 없습니다.");
   }
   return ss.getSheetByName(name);
+}
+
+// 실제 데이터가 있는 마지막 행을 찾는 함수 (빈 행 건너뛰기)
+function getRealLastRow(sheet) {
+  const data = sheet.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i].join("").trim().length > 0) {
+      return i + 1;
+    }
+  }
+  return 1;
 }
 
 // =================================================================
@@ -29,99 +40,64 @@ function getActiveSheetByName(name) {
 // =================================================================
 function doGet(e) {
   try {
-    // 파라미터가 없는 경우 방어 로직
     if (!e || !e.parameter) {
       return createJsonResponse({ result: "error", message: "파라미터가 없습니다." });
     }
     
     const type = e.parameter.type;
 
-    // --- 구글 슬라이드 페이지 ID 목록 가져오기 ---
+    // --- 구글 슬라이드 로직 생략 (기존과 동일) ---
     if (type === 'SLIDE_PAGES') {
       const presentationId = e.parameter.presentationId;
-      if (!presentationId) {
-        return createJsonResponse({ result: "error", message: "presentationId가 없습니다." });
-      }
-      
+      if (!presentationId) return createJsonResponse({ result: "error", message: "presentationId가 없습니다." });
       try {
         const presentation = SlidesApp.openById(presentationId);
         const slides = presentation.getSlides();
         const pageIds = [];
-        
-        for (let i = 0; i < slides.length; i++) {
-          pageIds.push(slides[i].getObjectId());
-        }
-        
+        for (let i = 0; i < slides.length; i++) pageIds.push(slides[i].getObjectId());
         return createJsonResponse(pageIds);
       } catch (error) {
-        // 권한이 없거나 오류 발생 시 기본 첫 페이지('p') 반환
         return createJsonResponse(['p']);
       }
     }
 
-    // --- 구글 슬라이드 특정 페이지 이미지(Base64) 가져오기 ---
     if (type === 'SLIDE_IMAGE') {
       const presentationId = e.parameter.presentationId;
       const pageId = e.parameter.pageId;
-      
-      if (!presentationId || !pageId) {
-        return createJsonResponse({ result: "error", message: "presentationId 또는 pageId가 없습니다." });
-      }
-
+      if (!presentationId || !pageId) return createJsonResponse({ result: "error", message: "presentationId 또는 pageId가 없습니다." });
       try {
-        // 권한 자동 부여를 위한 더미 코드 (최초 실행 시 Drive 접근 권한을 요구하게 만듦)
         DriveApp.getFileById(presentationId); 
-        
         const url = "https://docs.google.com/presentation/d/" + presentationId + "/export/png?id=" + presentationId + "&pageid=" + pageId;
-        const options = {
-          headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
-          muteHttpExceptions: true
-        };
+        const options = { headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() }, muteHttpExceptions: true };
         const response = UrlFetchApp.fetch(url, options);
         const blob = response.getBlob();
         const base64 = Utilities.base64Encode(blob.getBytes());
-        
-        return createJsonResponse({
-          result: "success",
-          base64: "data:image/png;base64," + base64
-        });
+        return createJsonResponse({ result: "success", base64: "data:image/png;base64," + base64 });
       } catch (error) {
         return createJsonResponse({ result: "error", message: error.toString() });
       }
     }
 
-    // --- 구글 슬라이드 특정 페이지 비디오 URL 가져오기 ---
     if (type === 'SLIDE_VIDEOS') {
       const presentationId = e.parameter.presentationId;
       const pageId = e.parameter.pageId;
-      
-      if (!presentationId || !pageId) {
-        return createJsonResponse({ result: "error", message: "presentationId 또는 pageId가 없습니다." });
-      }
-
+      if (!presentationId || !pageId) return createJsonResponse({ result: "error", message: "presentationId 또는 pageId가 없습니다." });
       try {
         const presentation = SlidesApp.openById(presentationId);
         const slides = presentation.getSlides();
         const videoUrls = [];
-        
         for (let i = 0; i < slides.length; i++) {
           if (slides[i].getObjectId() === pageId) {
             const videos = slides[i].getVideos();
-            for (let j = 0; j < videos.length; j++) {
-              videoUrls.push(videos[j].getUrl());
-            }
+            for (let j = 0; j < videos.length; j++) videoUrls.push(videos[j].getUrl());
             break;
           }
         }
-        return createJsonResponse({
-          result: "success",
-          videos: videoUrls
-        });
+        return createJsonResponse({ result: "success", videos: videoUrls });
       } catch (error) {
         return createJsonResponse({ result: "error", message: error.toString() });
       }
     }
-    // --------------------------------------------------------
 
     if (!type || !SHEET_MAP[type]) {
       return createJsonResponse({ result: "error", message: "Invalid sheet type" });
@@ -133,18 +109,19 @@ function doGet(e) {
       return createJsonResponse({ result: "error", message: `Sheet '${sheetName}' not found` });
     }
     
-    const data = sheet.getDataRange().getValues();
+    // 실제 데이터가 있는 범위까지만 가져오기
+    const lastRow = getRealLastRow(sheet);
+    const lastCol = sheet.getLastColumn();
+    if (lastRow === 0 || lastCol === 0) return createJsonResponse([]);
     
-    // 데이터가 없는 빈 시트일 경우 에러 방지
-    if (!data || data.length === 0) {
-      return createJsonResponse([]);
-    }
+    const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    if (!data || data.length === 0) return createJsonResponse([]);
     
     const headers = data.shift() || [];
     const jsonData = data.map(row => {
       let obj = {};
       headers.forEach((header, index) => {
-        obj[header] = row[index];
+        obj[String(header).trim()] = row[index];
       });
       return obj;
     });
@@ -157,68 +134,33 @@ function doGet(e) {
 }
 
 // =================================================================
-// POST 요청 처리 (데이터 쓰기/수정/인증)
+// POST 요청 처리 (데이터 쓰기/수정/삭제/인증)
 // =================================================================
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
-    const mode = data.mode || data.type;
+    const mode = data.mode;
 
     switch (mode) {
-      case 'LOGIN':
-        return handleLogin(data);
-      case 'SIGNUP':
-        return handleSignup(data);
-      case 'APPEND':
-        return handleAppend(data);
-      case 'UPDATE':
-        return handleUpdate(data);
-      case 'DELETE':
-        return handleDelete(data);
-      case 'UPDATE_USER':
-        return handleUpdateUser(data);
-      default:
-        return createJsonResponse({ result: "error", message: "Invalid mode" });
+      case 'LOGIN': return handleLogin(data);
+      case 'SIGNUP': return handleSignup(data);
+      case 'APPEND': return handleAppend(data);
+      case 'UPDATE': return handleUpdate(data);
+      case 'DELETE': return handleDelete(data); // ★ DELETE 모드 추가
+      default: return createTextResponse("Invalid mode");
     }
   } catch (error) {
-    return createJsonResponse({ result: "error", message: error.message });
+    return createTextResponse("Error: " + error.message);
   }
 }
 
-// =================================================================
-// CORS 에러 방지용 OPTIONS 요청 처리 (추가됨)
-// =================================================================
 function doOptions(e) {
-  return ContentService.createTextOutput("OK")
-    .setMimeType(ContentService.MimeType.TEXT);
+  return ContentService.createTextOutput("OK").setMimeType(ContentService.MimeType.TEXT);
 }
 
 // -----------------------------------------------------------------
 // POST 핸들러 함수들
 // -----------------------------------------------------------------
-
-function handleUpdateUser(data) {
-  const userSheet = getActiveSheetByName(SHEET_MAP['USER']);
-  if (!userSheet) return createJsonResponse({ result: "error", message: "USER sheet not found" });
-
-  const sheetData = userSheet.getDataRange().getValues();
-  const headers = sheetData[0];
-  const emailIndex = headers.indexOf('이메일');
-  const statusIndex = headers.indexOf('승인상태');
-
-  if (emailIndex === -1 || statusIndex === -1) {
-    return createJsonResponse({ result: "error", message: "이메일 or 승인상태 column not found" });
-  }
-
-  const rowIndex = sheetData.findIndex(row => row[emailIndex] === data.email);
-
-  if (rowIndex > 0) {
-    userSheet.getRange(rowIndex + 1, statusIndex + 1).setValue(data.status);
-    return createJsonResponse({ result: "success", message: "User status updated" });
-  } else {
-    return createJsonResponse({ result: "error", message: "User not found" });
-  }
-}
 
 function handleLogin(data) {
   const { email, password } = data;
@@ -243,32 +185,31 @@ function handleSignup(data) {
   const users = sheetToJSON(userSheet);
   const emailExists = users.some(u => u['이메일'] === data.email);
 
-  if (emailExists) {
-    return createTextResponse(JSON.stringify({ result: "error", message: "Email already exists" }));
-  }
+  if (emailExists) return createTextResponse(JSON.stringify({ result: "error", message: "Email already exists" }));
   
   const headers = userSheet.getRange(1, 1, 1, userSheet.getLastColumn()).getValues()[0];
-  const newRow = headers.map(header => data[header.toLowerCase()] || ""); 
-  userSheet.appendRow(newRow);
+  const newRow = headers.map(header => data[String(header).trim().toLowerCase()] || ""); 
+  
+  const lastRow = getRealLastRow(userSheet);
+  userSheet.getRange(lastRow + 1, 1, 1, newRow.length).setValues([newRow]);
 
   return createTextResponse(JSON.stringify({ result: "success" }));
 }
 
 function handleAppend(data) {
   const sheetName = SHEET_MAP[data.type];
-  if (!sheetName) return createJsonResponse({ result: "error", message: "Invalid sheet type for APPEND" });
+  if (!sheetName) return createTextResponse("Invalid sheet type for APPEND");
 
   const sheet = getActiveSheetByName(sheetName);
-  if (!sheet) return createJsonResponse({ result: "error", message: `${sheetName} sheet not found` });
+  if (!sheet) return createTextResponse(`${sheetName} sheet not found`);
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const newRow = headers.map(header => {
-      if (header === '타임스탬프') return data['타임스탬프'] || data.timestamp || new Date();
+  const newRow = headers.map(h => {
+      const header = String(h).trim(); // 공백 제거 (예: "이름 " -> "이름")
       
-      // 프론트엔드에서 한글 키값(예: '주차', '교구명', '정상수량', '파손수량', '분실수량')을 그대로 보낸 경우 우선 적용
+      if (header === '타임스탬프') return data['타임스탬프'] || data.timestamp || new Date();
       if (data[header] !== undefined) return data[header];
 
-      // 영문 키값으로 보낸 경우 매핑 (기존 호환성 유지)
       const keyMap = {
         '이름': 'userName', '날짜': 'date', '시간': 'time', '요일': 'dayOfWeek',
         '센터': 'center', '과목': 'subject', '지사': 'branch', '이메일': 'email',
@@ -277,34 +218,35 @@ function handleAppend(data) {
       return data[keyMap[header]] !== undefined ? data[keyMap[header]] : "";
   });
   
-  sheet.appendRow(newRow);
-  return createJsonResponse({ result: "success", message: "APPEND Success" });
+  // 빈 행을 건너뛰고 실제 데이터가 있는 마지막 행 바로 아래에 추가
+  const lastRow = getRealLastRow(sheet);
+  sheet.getRange(lastRow + 1, 1, 1, newRow.length).setValues([newRow]);
+  
+  return createTextResponse("APPEND Success");
 }
 
 function handleUpdate(data) {
   const sheetName = SHEET_MAP[data.type];
-  if (!sheetName) return createJsonResponse({ result: "error", message: "Invalid sheet type for UPDATE" });
+  if (!sheetName) return createTextResponse("Invalid sheet type for UPDATE");
 
   const sheet = getActiveSheetByName(sheetName);
-  if (!sheet) return createJsonResponse({ result: "error", message: `${sheetName} sheet not found` });
+  if (!sheet) return createTextResponse(`${sheetName} sheet not found`);
 
-  const sheetData = sheet.getDataRange().getValues();
-  const headers = sheetData[0];
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow === 0 || lastCol === 0) return createTextResponse("Sheet is empty");
+
+  const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = sheetData[0].map(h => String(h).trim());
   const timestampIndex = headers.indexOf('타임스탬프');
 
-  if (timestampIndex === -1) {
-    return createJsonResponse({ result: "error", message: "타임스탬프 column not found" });
-  }
+  if (timestampIndex === -1) return createTextResponse("타임스탬프 column not found");
 
-  // [개선됨] ISOString 비교 시 발생할 수 있는 밀리초 오차를 방지하기 위해 getTime()으로 비교
   const targetTimestamp = data['타임스탬프'] || data.timestamp;
+
   const rowIndex = sheetData.findIndex(row => {
     if (!row[timestampIndex]) return false;
-    
-    // 문자열 그대로 일치하는지 먼저 확인
     if (row[timestampIndex] === targetTimestamp) return true;
-    
-    // Date 객체로 변환하여 시간(ms) 단위로 일치하는지 확인
     try {
       const sheetTime = new Date(row[timestampIndex]).getTime();
       const targetTime = new Date(targetTimestamp).getTime();
@@ -316,9 +258,7 @@ function handleUpdate(data) {
 
   if (rowIndex > 0) { 
     const newRow = headers.map(header => {
-      // 한글 키값 직접 매핑 추가 (정상수량, 파손수량, 분실수량 등 모두 자동 처리됨)
       if (data[header] !== undefined) return data[header];
-
       const keyMap = {
         '이름': 'userName', '날짜': 'date', '시간': 'time', '요일': 'dayOfWeek',
         '센터': 'center', '과목': 'subject', '지사': 'branch', '이메일': 'email',
@@ -327,28 +267,32 @@ function handleUpdate(data) {
       return data[keyMap[header]] !== undefined ? data[keyMap[header]] : sheetData[rowIndex][headers.indexOf(header)];
     });
     sheet.getRange(rowIndex + 1, 1, 1, newRow.length).setValues([newRow]);
-    return createJsonResponse({ result: "success", message: "UPDATE Success" });
+    return createTextResponse("UPDATE Success");
   } else {
-    return createJsonResponse({ result: "error", message: "Row to update not found" });
+    return createTextResponse("Row to update not found");
   }
 }
 
+// ★ 새로 추가된 DELETE 핸들러 함수
 function handleDelete(data) {
   const sheetName = SHEET_MAP[data.type];
-  if (!sheetName) return createJsonResponse({ result: "error", message: "Invalid sheet type for DELETE" });
+  if (!sheetName) return createTextResponse("Invalid sheet type for DELETE");
 
   const sheet = getActiveSheetByName(sheetName);
-  if (!sheet) return createJsonResponse({ result: "error", message: `${sheetName} sheet not found` });
+  if (!sheet) return createTextResponse(`${sheetName} sheet not found`);
 
-  const sheetData = sheet.getDataRange().getValues();
-  const headers = sheetData[0];
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow === 0 || lastCol === 0) return createTextResponse("Sheet is empty");
+
+  const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = sheetData[0].map(h => String(h).trim());
   const timestampIndex = headers.indexOf('타임스탬프');
 
-  if (timestampIndex === -1) {
-    return createJsonResponse({ result: "error", message: "타임스탬프 column not found" });
-  }
+  if (timestampIndex === -1) return createTextResponse("타임스탬프 column not found");
 
   const targetTimestamp = data['타임스탬프'] || data.timestamp;
+
   const rowIndex = sheetData.findIndex(row => {
     if (!row[timestampIndex]) return false;
     if (row[timestampIndex] === targetTimestamp) return true;
@@ -361,11 +305,12 @@ function handleDelete(data) {
     }
   });
 
-  if (rowIndex > 0) {
-    sheet.deleteRow(rowIndex + 1);
-    return createJsonResponse({ result: "success", message: "DELETE Success" });
+  // rowIndex가 0보다 크다는 것은 헤더(0번 인덱스)가 아닌 실제 데이터 행을 찾았다는 뜻
+  if (rowIndex > 0) { 
+    sheet.deleteRow(rowIndex + 1); // 배열 인덱스는 0부터, 시트 행은 1부터 시작하므로 +1
+    return createTextResponse("DELETE Success");
   } else {
-    return createJsonResponse({ result: "error", message: "Row to delete not found" });
+    return createTextResponse("Row to delete not found");
   }
 }
 
@@ -374,8 +319,7 @@ function handleDelete(data) {
 // =================================================================
 
 function createJsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function createTextResponse(message) {
@@ -383,14 +327,16 @@ function createTextResponse(message) {
 }
 
 function sheetToJSON(sheet) {
-  const data = sheet.getDataRange().getValues();
-  if (!data || data.length === 0) return [];
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow === 0 || lastCol === 0) return [];
   
+  const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
   const headers = data.shift() || [];
   return data.map(row => {
     let obj = {};
     headers.forEach((header, index) => {
-      obj[header] = row[index];
+      obj[String(header).trim()] = row[index];
     });
     return obj;
   });

@@ -15,6 +15,7 @@ const PropsOffPage: React.FC = () => {
 
   // Form states
   const [propName, setPropName] = useState('');
+  const [courseName, setCourseName] = useState('');
   const [normalQuantity, setNormalQuantity] = useState('');
   const [brokenQuantity, setBrokenQuantity] = useState('');
   const [lostQuantity, setLostQuantity] = useState('');
@@ -72,47 +73,125 @@ const PropsOffPage: React.FC = () => {
   }, [dataList, userData]);
 
   const offDaysByMonth = useMemo(() => {
-    const grouped: Record<string, any[]> = {};
+    const grouped: Record<string, Record<string, any>> = {};
     
-    baseList.forEach(item => {
-      if (item['쉬는날']) {
-        const dates = String(item['쉬는날']).split(',').map(d => d.trim()).filter(Boolean);
-        dates.forEach(dateStr => {
-          const [year, month] = dateStr.split('-');
-          if (year && month) {
-            const monthKey = `${year}년 ${parseInt(month, 10)}월`;
-            if (!grouped[monthKey]) {
-              grouped[monthKey] = [];
-            }
-            grouped[monthKey].push({
-              date: dateStr,
-              name: item['이름'],
-              branch: item['지사'],
-              department: item['부서'],
-              timestamp: item['타임스탬프']
-            });
+    if (!userData) return { grouped: {}, sortedMonths: [] };
+    const userRole = String(userData.role).trim();
+    const userBranch = String(userData.branch).trim();
+    const userEmail = String(userData.email).trim();
+
+    const offDaysList = dataList.filter(item => {
+      if (!item['쉬는날']) return false;
+      if (userRole === '관리자') return true;
+      if (userRole === '부관리자') return String(item['지사'] || '').trim() === userBranch;
+      return String(item['이메일'] || '').trim() === userEmail;
+    });
+
+    offDaysList.forEach(item => {
+      const dates = String(item['쉬는날']).split(',').map(d => d.trim()).filter(Boolean);
+      dates.forEach(dateStr => {
+        const [year, month] = dateStr.split('-');
+        if (year && month) {
+          const monthKey = `${year}년 ${parseInt(month, 10)}월`;
+          if (!grouped[monthKey]) {
+            grouped[monthKey] = {};
           }
-        });
-      }
+          const personKey = `${item['이름']}_${item['지사']}_${item['부서']}`;
+          if (!grouped[monthKey][personKey]) {
+            grouped[monthKey][personKey] = {
+              name: item['이름'],
+              branch: item['지사'] || '미지정',
+              department: item['부서'] || '미지정',
+              dates: []
+            };
+          }
+          if (!grouped[monthKey][personKey].dates.includes(dateStr)) {
+            grouped[monthKey][personKey].dates.push(dateStr);
+          }
+        }
+      });
     });
 
     const sortedMonths = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+    const finalGrouped: Record<string, { branch: string, departments: { department: string, persons: any[] }[] }[]> = {};
     
     sortedMonths.forEach(month => {
-      grouped[month].sort((a, b) => a.date.localeCompare(b.date));
+      const persons = Object.values(grouped[month]);
+      persons.forEach(p => p.dates.sort((a: string, b: string) => a.localeCompare(b)));
+      persons.sort((a, b) => {
+        const dateA = a.dates[0] || '';
+        const dateB = b.dates[0] || '';
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        return a.name.localeCompare(b.name);
+      });
+
+      const branchGroup: Record<string, Record<string, any[]>> = {};
+      persons.forEach(p => {
+        if (!branchGroup[p.branch]) branchGroup[p.branch] = {};
+        if (!branchGroup[p.branch][p.department]) branchGroup[p.branch][p.department] = [];
+        branchGroup[p.branch][p.department].push(p);
+      });
+
+      const sortedBranches = Object.keys(branchGroup).sort((a, b) => a.localeCompare(b));
+      finalGrouped[month] = sortedBranches.map(branch => {
+        const sortedDepartments = Object.keys(branchGroup[branch]).sort((a, b) => a.localeCompare(b));
+        return {
+          branch,
+          departments: sortedDepartments.map(dept => ({
+            department: dept,
+            persons: branchGroup[branch][dept]
+          }))
+        };
+      });
     });
 
-    return { grouped, sortedMonths };
-  }, [baseList]);
+    return { grouped: finalGrouped, sortedMonths };
+  }, [dataList, userData]);
 
-  const filteredPropsList = useMemo(() => {
+  const { filteredPropsList, groupedPropsList } = useMemo(() => {
     let list = baseList.filter(item => item['교구명']);
 
     if (selectedWeek !== '전체') {
       list = list.filter(item => item['주차'] === selectedWeek);
     }
 
-    return list.sort((a, b) => new Date(b['타임스탬프']).getTime() - new Date(a['타임스탬프']).getTime());
+    list.sort((a, b) => new Date(b['타임스탬프']).getTime() - new Date(a['타임스탬프']).getTime());
+
+    const branchGroup: Record<string, Record<string, any[]>> = {};
+    list.forEach(item => {
+      const branch = String(item['지사'] || '미지정').trim();
+      const course = String(item['수업명'] || '미지정').trim();
+      if (!branchGroup[branch]) branchGroup[branch] = {};
+      if (!branchGroup[branch][course]) branchGroup[branch][course] = [];
+      branchGroup[branch][course].push(item);
+    });
+
+    const sortedBranches = Object.keys(branchGroup).sort((a, b) => a.localeCompare(b));
+    const groupedList = sortedBranches.map(branch => {
+      const sortedCourses = Object.keys(branchGroup[branch]).sort((a, b) => a.localeCompare(b));
+      return {
+        branch,
+        courses: sortedCourses.map(course => {
+          const items = branchGroup[branch][course];
+          const personGroup: Record<string, any[]> = {};
+          items.forEach(item => {
+            const name = String(item['이름'] || '미지정').trim();
+            if (!personGroup[name]) personGroup[name] = [];
+            personGroup[name].push(item);
+          });
+          const sortedNames = Object.keys(personGroup).sort((a, b) => a.localeCompare(b));
+          return {
+            course: course,
+            persons: sortedNames.map(name => ({
+              name,
+              items: personGroup[name]
+            }))
+          };
+        })
+      };
+    });
+
+    return { filteredPropsList: list, groupedPropsList: groupedList };
   }, [baseList, selectedWeek]);
 
   const handleAddOffDay = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,6 +241,7 @@ const PropsOffPage: React.FC = () => {
     if (modalMode === 'PROP') {
       payload.mode = editItem ? 'UPDATE' : 'APPEND';
       payload['주차'] = week;
+      payload['수업명'] = courseName;
       payload['교구명'] = propName;
       payload['정상수량'] = normalQuantity;
       payload['파손수량'] = brokenQuantity;
@@ -179,6 +259,7 @@ const PropsOffPage: React.FC = () => {
       // 기존 교구 데이터가 있다면 유지
       if (editItem) {
         payload['주차'] = editItem['주차'] || '';
+        payload['수업명'] = editItem['수업명'] || '';
         payload['교구명'] = editItem['교구명'] || '';
         payload['정상수량'] = editItem['정상수량'] || '';
         payload['파손수량'] = editItem['파손수량'] || '';
@@ -196,6 +277,7 @@ const PropsOffPage: React.FC = () => {
       
       setIsModalOpen(false);
       setPropName('');
+      setCourseName('');
       setNormalQuantity('');
       setBrokenQuantity('');
       setLostQuantity('');
@@ -269,22 +351,43 @@ const PropsOffPage: React.FC = () => {
             {offDaysByMonth.sortedMonths.map(month => (
               <div key={month} className="bg-white p-5 rounded-3xl border border-rose-100 shadow-sm">
                 <h4 className="text-sm font-black text-rose-500 mb-4 border-b border-rose-50 pb-2">{month}</h4>
-                <div className="grid gap-3">
-                  {offDaysByMonth.grouped[month].map((off: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-rose-50/50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-full bg-white flex items-center justify-center text-rose-400 shadow-sm border border-rose-100">
-                          <span className="material-symbols-outlined text-sm">event_busy</span>
-                        </div>
-                        <div>
-                          <p className="font-bold text-[#0a1931]">{off.name} 강사님</p>
-                          <p className="text-[10px] text-gray-500 font-medium">{off.branch} · {off.department}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="px-3 py-1.5 bg-white text-rose-600 text-xs font-bold rounded-lg border border-rose-200 shadow-sm">
-                          {off.date}
-                        </span>
+                <div className="space-y-6">
+                  {offDaysByMonth.grouped[month].map((branchGroup, bIdx) => (
+                    <div key={bIdx} className="space-y-4">
+                      <h5 className="text-sm font-bold text-[#0a1931] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-rose-400 text-sm">domain</span>
+                        {branchGroup.branch}
+                      </h5>
+                      <div className="space-y-4 pl-2 border-l-2 border-rose-50">
+                        {branchGroup.departments.map((deptGroup, dIdx) => (
+                          <div key={dIdx} className="space-y-3">
+                            <h6 className="text-xs font-bold text-gray-500 flex items-center gap-1.5 ml-2">
+                              <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                              {deptGroup.department}
+                            </h6>
+                            <div className="grid gap-3 ml-2">
+                              {deptGroup.persons.map((off: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between p-3 bg-rose-50/50 rounded-xl">
+                                  <div className="flex items-center gap-3">
+                                    <div className="size-10 rounded-full bg-white flex items-center justify-center text-rose-400 shadow-sm border border-rose-100 shrink-0">
+                                      <span className="material-symbols-outlined text-sm">event_busy</span>
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-[#0a1931]">{off.name} 강사님</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap justify-end gap-1.5 max-w-[55%]">
+                                    {off.dates.map((d: string, dIdx: number) => (
+                                      <span key={dIdx} className="px-2 py-1 bg-white text-rose-600 text-[11px] font-bold rounded-md border border-rose-200 shadow-sm whitespace-nowrap">
+                                        {d.substring(5).replace('-', '/')}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -307,6 +410,7 @@ const PropsOffPage: React.FC = () => {
           <button 
             onClick={() => {
               setPropName('');
+              setCourseName('');
               setNormalQuantity('');
               setBrokenQuantity('');
               setLostQuantity('');
@@ -334,70 +438,94 @@ const PropsOffPage: React.FC = () => {
         </div>
 
         {filteredPropsList.length > 0 ? (
-          <div className="grid gap-4">
-            {filteredPropsList.map((item, idx) => (
-              <div key={idx} className="bg-white p-5 rounded-3xl border border-gray-50 shadow-sm flex flex-col gap-3">
-                <div className="flex items-center justify-between border-b border-gray-50 pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
-                      <span className="material-symbols-outlined">inventory_2</span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#0a1931]">{item['이름']} 강사님</p>
-                      <p className="text-[10px] text-gray-400 font-bold">{item['지사']} · {item['부서']}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-400 font-medium">
-                      {new Date(item['타임스탬프']).toLocaleDateString()}
-                    </span>
-                    {(String(userData?.name || '').trim() === String(item['이름'] || '').trim() || String(userData?.role || '').trim() === '관리자' || String(userData?.role || '').trim() === '부관리자') && (
-                      <button
-                        onClick={() => {
-                          setPropName(item['교구명'] || '');
-                          setNormalQuantity(item['정상수량'] || '');
-                          setBrokenQuantity(item['파손수량'] || '');
-                          setLostQuantity(item['분실수량'] || '');
-                          setWeek(item['주차'] || '1주차');
-                          setEditItem(item);
-                          setModalMode('PROP');
-                          setIsModalOpen(true);
-                        }}
-                        className="p-1 text-gray-400 hover:text-[#0a1931] transition-colors rounded-lg hover:bg-gray-100"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">edit</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  {item['교구명'] && (
-                    <div className="flex items-start gap-2 bg-gray-50 p-3 rounded-xl">
-                      <span className="material-symbols-outlined text-sm text-gray-400 mt-0.5">extension</span>
-                      <div>
-                        <p className="text-xs font-bold text-gray-500">사용한 교구 {item['주차'] ? `(${item['주차']})` : ''}</p>
-                        <p className="text-sm font-bold text-[#0a1931]">
-                          {item['교구명']} 
-                          {item['정상수량'] && (
-                            <span className="text-blue-500 ml-1">
-                              정상({item['정상수량']})
-                            </span>
-                          )}
-                          {item['파손수량'] && (
-                            <span className="text-red-500 ml-1">
-                              파손({item['파손수량']})
-                            </span>
-                          )}
-                          {item['분실수량'] && (
-                            <span className="text-orange-500 ml-1">
-                              분실({item['분실수량']})
-                            </span>
-                          )}
-                        </p>
+          <div className="space-y-6">
+            {groupedPropsList.map((branchGroup, bIdx) => (
+              <div key={bIdx} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                <h4 className="text-sm font-black text-[#0a1931] flex items-center gap-2 border-b border-gray-50 pb-2">
+                  <span className="material-symbols-outlined text-rose-500 text-sm">domain</span>
+                  {branchGroup.branch}
+                </h4>
+                <div className="space-y-4 pl-2 border-l-2 border-gray-50">
+                  {branchGroup.courses.map((courseGroup, cIdx) => (
+                    <div key={cIdx} className="space-y-3">
+                      <h5 className="text-xs font-bold text-gray-500 flex items-center gap-1.5 ml-2">
+                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                        {courseGroup.course}
+                      </h5>
+                      <div className="grid gap-3 ml-2">
+                        {courseGroup.persons.map((person: any, pIdx: number) => (
+                          <div key={pIdx} className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 flex flex-col gap-3">
+                            <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                              <div className="size-10 rounded-full bg-white flex items-center justify-center text-rose-500 shadow-sm">
+                                <span className="material-symbols-outlined text-sm">inventory_2</span>
+                              </div>
+                              <div>
+                                <p className="font-bold text-[#0a1931]">{person.name} 강사님</p>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              {person.items.map((item: any, idx: number) => (
+                                item['교구명'] && (
+                                  <div key={idx} className="flex flex-col gap-2 bg-white p-3 rounded-xl border border-gray-100 shadow-sm relative group">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex items-start gap-2">
+                                        <span className="material-symbols-outlined text-sm text-gray-400 mt-0.5">extension</span>
+                                        <div>
+                                          <p className="text-xs font-bold text-gray-500">사용한 교구 {item['주차'] ? `(${item['주차']})` : ''}{item['수업명'] ? ` - ${item['수업명']}` : ''}</p>
+                                          <p className="text-sm font-bold text-[#0a1931]">
+                                            {item['교구명']} 
+                                            {item['정상수량'] && (
+                                              <span className="text-blue-500 ml-1">
+                                                정상({item['정상수량']})
+                                              </span>
+                                            )}
+                                            {item['파손수량'] && (
+                                              <span className="text-red-500 ml-1">
+                                                파손({item['파손수량']})
+                                              </span>
+                                            )}
+                                            {item['분실수량'] && (
+                                              <span className="text-orange-500 ml-1">
+                                                분실({item['분실수량']})
+                                              </span>
+                                            )}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-col items-end gap-1">
+                                        <span className="text-[10px] text-gray-400 font-medium">
+                                          {new Date(item['타임스탬프']).toLocaleDateString()}
+                                        </span>
+                                        {(String(userData?.name || '').trim() === String(item['이름'] || '').trim() || String(userData?.role || '').trim() === '관리자' || String(userData?.role || '').trim() === '부관리자') && (
+                                          <button
+                                            onClick={() => {
+                                              setPropName(item['교구명'] || '');
+                                              setCourseName(item['수업명'] || '');
+                                              setNormalQuantity(item['정상수량'] || '');
+                                              setBrokenQuantity(item['파손수량'] || '');
+                                              setLostQuantity(item['분실수량'] || '');
+                                              setWeek(item['주차'] || '1주차');
+                                              setEditItem(item);
+                                              setModalMode('PROP');
+                                              setIsModalOpen(true);
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-[#0a1931] transition-colors rounded-lg hover:bg-gray-100"
+                                          >
+                                            <span className="material-symbols-outlined text-[16px]">edit</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             ))}
@@ -439,6 +567,22 @@ const PropsOffPage: React.FC = () => {
                           className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${week === w ? 'bg-rose-500 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
                         >
                           {w}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-gray-500 ml-1">수업명</label>
+                    <div className="flex gap-2">
+                      {['음악', '전래', '체조', '인지', '노래'].map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setCourseName(c)}
+                          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${courseName === c ? 'bg-rose-500 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                        >
+                          {c}
                         </button>
                       ))}
                     </div>

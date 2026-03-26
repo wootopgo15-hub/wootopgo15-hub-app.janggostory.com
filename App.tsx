@@ -24,8 +24,8 @@ const App: React.FC = () => {
         console.log('WebSocket Connected');
         const userData = localStorage.getItem('userData');
         if (userData) {
-          const { name, email } = JSON.parse(userData);
-          ws.send(JSON.stringify({ type: 'LOGIN', name, email }));
+          const { name, email, branch, department } = JSON.parse(userData);
+          ws.send(JSON.stringify({ type: 'LOGIN', name, email, branch, department }));
         }
       };
 

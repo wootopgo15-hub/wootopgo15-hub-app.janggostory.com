@@ -44,7 +44,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
 
   const filteredCenters = useMemo(() => {
     const trimmedInput = formCenter.trim();
-    const excludedWords = ['요양원', '센터', '요양', '주간', '보호', '주간보', '주간보호', '주간보호센', '주간보호센터', '보호센', '보호센터', '간보', '간보호', '간보호센', '간보호센터', '호센', '호센터'];
+    const excludedWords = ['요양원', '센터', '요양', '주간', '보호', '주간보', '주간보호', '주간보호센', '주간보호센터', '보호센', '보호센터', '간보', '간보호', '간보호센', '간보호센터', '호센', '호센터', '세종', '평택'];
     
     // 2글자 미만이거나, 제외 단어만 정확히 입력한 경우 미리보기 숨김
     if (trimmedInput.length < 2 || excludedWords.includes(trimmedInput) || !userData) return [];
@@ -419,8 +419,8 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
                     setSelectedDate(date);
                     setIsDetailsModalOpen(true);
                   }} 
-                  className={`relative bg-white flex flex-col items-center pt-1 pb-1 transition-all overflow-hidden h-full w-full ${isSelected ? 'ring-2 ring-inset ring-primary z-10' : 'hover:bg-gray-50'}`}>
-                  <span className={`text-[10px] font-black mb-0.5 ${isSelected ? 'text-primary' : 'text-gray-600'}`}>{date.getDate()}</span>
+                  className={`relative bg-white flex flex-col items-center justify-start pt-1 pb-1 transition-all overflow-hidden h-full w-full ${isSelected ? 'ring-2 ring-inset ring-primary z-10' : 'hover:bg-gray-50'}`}>
+                  <span className={`text-[10px] font-black mb-0.5 shrink-0 ${isSelected ? 'text-primary' : 'text-gray-600'}`}>{date.getDate()}</span>
                   
                   <div className="w-full px-0.5 space-y-px overflow-hidden flex-1">
                     {dayData.slice(0, 4).map((item, idx) => {

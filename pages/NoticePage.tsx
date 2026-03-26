@@ -182,9 +182,9 @@ const NoticePage: React.FC<Props> = ({ title = "공지방", type = "NOTICE", ico
                     }`}>
                       {item['중요도'] || '보통'}
                     </span>
-                    <span className="text-[9px] text-gray-400 font-bold">{item['지사'] || '전체'}</span>
+                    <span className="text-[9px] text-gray-500 font-bold">{item['지사'] || '전체'}</span>
                   </div>
-                  <span className="text-[9px] text-gray-300 font-bold">
+                  <span className="text-[9px] text-gray-500 font-bold shrink-0 ml-2">
                     {item['작성일'] ? String(item['작성일']).substring(0, 10) : ''}
                   </span>
                 </div>
