@@ -561,27 +561,41 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-[#0a1931] ml-2">날짜 <span className="text-rose-500">*</span></label>
-                  <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+                  <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center justify-between px-3 sm:px-4 overflow-hidden">
+                    <span className="font-bold text-xs sm:text-sm text-[#0a1931] whitespace-nowrap overflow-hidden text-ellipsis">
+                      {formDate.endsWith('-00') || !formDate ? '날짜 선택' : formDate}
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 shrink-0 ml-1">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                     <input 
                       type="date"
                       value={formDate.endsWith('-00') ? '' : formDate}
                       onChange={(e) => setFormDate(e.target.value)}
-                      className="w-full h-full px-5 bg-transparent border-none outline-none font-bold text-sm cursor-pointer"
+                      onClick={(e) => { try { e.currentTarget.showPicker(); } catch(err) {} }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       required
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-[#0a1931] ml-2">시간 <span className="text-rose-500">*</span></label>
-                  <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+                  <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center justify-between px-3 sm:px-4 overflow-hidden">
+                    <span className="font-bold text-xs sm:text-sm text-[#0a1931] whitespace-nowrap overflow-hidden text-ellipsis">
+                      {!formTime ? '시간 선택' : formTime}
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 shrink-0 ml-1">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                     <input 
                       type="time"
                       value={formTime} 
                       onChange={(e) => setFormTime(e.target.value)} 
-                      className="w-full h-full px-5 bg-transparent border-none outline-none font-bold text-sm cursor-pointer" 
+                      onClick={(e) => { try { e.currentTarget.showPicker(); } catch(err) {} }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                       required 
                     />
                   </div>
