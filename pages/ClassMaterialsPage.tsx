@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchSheetData, getCachedSheetData, submitToGoogleSheets } from '../services/googleSheets';
-import { Play, Pause, CheckCircle2, Circle, Clock, Plus, X, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { Play, Pause, CheckCircle2, Circle, Clock, Plus, X, Volume2, VolumeX, Loader2, AlertCircle, ExternalLink, Rewind, FastForward } from 'lucide-react';
 import ReactPlayer from 'react-player';
 
 const ClassMaterialsPage: React.FC = () => {
@@ -13,7 +13,7 @@ const ClassMaterialsPage: React.FC = () => {
   const [totalWatchTime, setTotalWatchTime] = useState(0); // in seconds
 
   // Player State
-  const playerRef = useRef<ReactPlayer>(null);
+  const playerRef = useRef<any>(null);
   const [playing, setPlaying] = useState(false);
   const [played, setPlayed] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -22,7 +22,6 @@ const ClassMaterialsPage: React.FC = () => {
   const [muted, setMuted] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,7 +70,6 @@ const ClassMaterialsPage: React.FC = () => {
       setPlayed(0);
       setPlaying(false);
       setIsReady(false);
-      setIsBuffering(false);
     }
   }, [selectedVideo]);
 
@@ -86,19 +84,30 @@ const ClassMaterialsPage: React.FC = () => {
   const handleSeekMouseUp = (e: React.MouseEvent<HTMLInputElement>) => {
     setSeeking(false);
     if (playerRef.current) {
-      playerRef.current.seekTo(parseFloat((e.target as HTMLInputElement).value));
+      playerRef.current.currentTime = parseFloat((e.target as HTMLInputElement).value) * duration;
     }
   };
 
-  const handleProgress = (state: { played: number }) => {
-    if (!seeking) {
-      setPlayed(state.played);
-    }
+  const handleRewind = () => {
     if (playerRef.current) {
-      const d = playerRef.current.getDuration();
-      if (d && d !== duration) {
-        setDuration(d);
-      }
+      playerRef.current.currentTime = Math.max(0, playerRef.current.currentTime - 10);
+    }
+  };
+
+  const handleFastForward = () => {
+    if (playerRef.current) {
+      playerRef.current.currentTime = Math.min(duration, playerRef.current.currentTime + 10);
+    }
+  };
+
+  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const currentTime = e.currentTarget.currentTime;
+    const d = e.currentTarget.duration;
+    if (d && d !== duration) {
+      setDuration(d);
+    }
+    if (!seeking && d > 0) {
+      setPlayed(currentTime / d);
     }
   };
 
@@ -133,28 +142,54 @@ const ClassMaterialsPage: React.FC = () => {
     });
   };
 
-  // Extract Google Drive Video ID to embed if possible
   const isGoogleDriveUrl = (url: string) => {
     if (!url) return false;
     return url.includes('drive.google.com') || url.includes('docs.google.com/file');
   };
 
-  const getEmbedUrl = (url: string) => {
+  const isGoogleSlidesUrl = (url: string) => {
+    if (!url) return false;
+    return url.includes('docs.google.com/presentation');
+  };
+
+  const isGoogleSheetsUrl = (url: string) => {
+    if (!url) return false;
+    return url.includes('docs.google.com/spreadsheets');
+  };
+
+  const getSlidesEmbedUrl = (url: string) => {
     if (!url) return '';
-    
-    // Handle Google Drive links (file/d/ID or id=ID)
+    let embedUrl = url;
+    if (!url.includes('/embed')) {
+      const slideRegex = /\/presentation\/d\/([a-zA-Z0-9_-]+)/;
+      const match = url.match(slideRegex);
+      if (match && match[1]) {
+        embedUrl = `https://docs.google.com/presentation/d/${match[1]}/embed?start=false&loop=false&delayms=3000`;
+      }
+    }
+    if (embedUrl.includes('/embed') && !embedUrl.includes('rm=minimal')) {
+      embedUrl += embedUrl.includes('?') ? '&rm=minimal' : '?rm=minimal';
+    }
+    return embedUrl;
+  };
+
+  const getDriveEmbedUrl = (url: string) => {
+    if (!url) return '';
     const driveRegex = /(?:file\/d\/|id=)([a-zA-Z0-9_-]+)/;
     const driveMatch = url.match(driveRegex);
     if (driveMatch && driveMatch[1]) {
       return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
     }
-    
-    // Handle YouTube links as fallback
-    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-    if (ytMatch && ytMatch[1]) {
-      return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    return url;
+  };
+
+  const getSheetsEmbedUrl = (url: string) => {
+    if (!url) return '';
+    const sheetRegex = /spreadsheets\/d\/([a-zA-Z0-9_-]+)/;
+    const sheetMatch = url.match(sheetRegex);
+    if (sheetMatch && sheetMatch[1]) {
+      return `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/htmlembed?widget=false&chrome=false&headers=false`;
     }
-    
     return url;
   };
 
@@ -230,48 +265,80 @@ const ClassMaterialsPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-6 flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto w-full pb-24">
+      <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full pb-24 flex flex-col lg:flex-row gap-6 lg:gap-8">
         {/* Video Player Section */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col">
           <div 
-            className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-lg border border-gray-200 relative group select-none"
+            className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-lg relative group select-none shrink-0"
             onContextMenu={(e) => e.preventDefault()}
           >
             {selectedVideo && selectedVideo['주소'] ? (
-              videoError ? (
-                <div className="w-full h-full relative">
+              isGoogleSlidesUrl(selectedVideo['주소']) ? (
+                <div className="w-full h-full relative flex flex-col bg-gray-900">
                   <iframe
-                    src={getEmbedUrl(selectedVideo['주소'])}
-                    className="w-full h-full border-0"
+                    src={getSlidesEmbedUrl(selectedVideo['주소'])}
+                    className="w-full h-full border-0 flex-1"
+                    allowFullScreen
+                    referrerPolicy="no-referrer"
+                  ></iframe>
+                </div>
+              ) : isGoogleSheetsUrl(selectedVideo['주소']) ? (
+                <div className="w-full h-full relative flex flex-col bg-gray-900">
+                  <iframe
+                    src={getSheetsEmbedUrl(selectedVideo['주소'])}
+                    className="w-full h-full border-0 flex-1 bg-white"
+                    allowFullScreen
+                    referrerPolicy="no-referrer"
+                  ></iframe>
+                </div>
+              ) : isGoogleDriveUrl(selectedVideo['주소']) ? (
+                <div className="w-full h-full relative flex flex-col bg-gray-900">
+                  <iframe
+                    src={getDriveEmbedUrl(selectedVideo['주소'])}
+                    className="w-full h-full border-0 flex-1"
                     allow="autoplay; fullscreen"
                     allowFullScreen
                     referrerPolicy="no-referrer"
                   ></iframe>
                 </div>
+              ) : videoError ? (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-white p-6 text-center">
+                  <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
+                  <h3 className="text-lg font-bold mb-2">영상을 재생할 수 없습니다</h3>
+                  <p className="text-sm text-gray-400 mb-6 max-w-md">
+                    Google Drive 보안 정책이나 접근 권한 문제로 인해 브라우저에서 직접 재생이 차단되었을 수 있습니다.
+                  </p>
+                  <a
+                    href={selectedVideo['주소']}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-colors"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    새 창에서 영상 보기
+                  </a>
+                </div>
               ) : (
                 <div className="w-full h-full relative">
-                  {(!isReady || isBuffering) && (
+                  {!isReady && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 backdrop-blur-sm">
                       <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
                     </div>
                   )}
                   <ReactPlayer
                     ref={playerRef}
-                    url={getPlayableUrl(selectedVideo['주소'])}
+                    src={getPlayableUrl(selectedVideo['주소'])}
                     playing={playing}
                     volume={volume}
                     muted={muted}
                     width="100%"
                     height="100%"
                     controls={false}
-                    onProgress={handleProgress}
-                    onBuffer={() => setIsBuffering(true)}
-                    onBufferEnd={() => setIsBuffering(false)}
+                    onTimeUpdate={handleTimeUpdate}
                     onReady={() => {
                       setIsReady(true);
-                      setIsBuffering(false);
                       if (playerRef.current) {
-                        setDuration(playerRef.current.getDuration() || 0);
+                        setDuration(playerRef.current.duration || 0);
                       }
                     }}
                     onError={() => {
@@ -290,7 +357,7 @@ const ClassMaterialsPage: React.FC = () => {
                           onContextMenu: (e: any) => e.preventDefault()
                         }
                       }
-                    }}
+                    } as any}
                   />
                 </div>
               )
@@ -302,25 +369,24 @@ const ClassMaterialsPage: React.FC = () => {
             )}
           </div>
           {selectedVideo && (
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <div className="py-5 md:py-6 shrink-0">
               <div className="flex justify-between items-start mb-2">
-                <h2 className="text-xl font-black text-gray-900">{selectedVideo['제목'] || '제목 없음'}</h2>
+                <h2 className="text-2xl font-black text-gray-900">{selectedVideo['제목'] || '제목 없음'}</h2>
               </div>
-              <p className="text-sm text-gray-500">{selectedVideo['설명'] || '강의 설명이 없습니다.'}</p>
+              <p className="text-base text-gray-600 leading-relaxed">{selectedVideo['설명'] || '강의 설명이 없습니다.'}</p>
             </div>
           )}
         </div>
 
         {/* Playlist Section */}
-        <div className="w-full lg:w-96 flex flex-col gap-4">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-full max-h-[calc(100vh-12rem)]">
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-              <h3 className="font-bold text-gray-900">강의 목록</h3>
-              <span className="text-xs font-medium text-gray-500">
-                {watchedVideos.size} / {videos.length} 완료
-              </span>
-            </div>
-            <div className="overflow-y-auto flex-1 p-2 space-y-1">
+        <div className="w-full lg:w-96 flex flex-col shrink-0">
+          <div className="pb-4 flex items-center justify-between sticky top-0 z-10 bg-[#f8fafc]">
+            <h3 className="font-bold text-gray-900 text-lg">강의 목록</h3>
+            <span className="text-sm font-medium text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm border border-gray-100">
+              {watchedVideos.size} / {videos.length} 완료
+            </span>
+          </div>
+          <div className="space-y-3">
               {loading && videos.length === 0 ? (
                 <div className="p-4 text-center text-sm text-gray-500">목록을 불러오는 중...</div>
               ) : videos.length === 0 ? (
@@ -333,8 +399,8 @@ const ClassMaterialsPage: React.FC = () => {
                     <div 
                       key={idx}
                       onClick={() => setSelectedVideo(video)}
-                      className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${
-                        isSelected ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-50 border border-transparent'
+                      className={`flex items-start gap-4 p-4 rounded-2xl cursor-pointer transition-all ${
+                        isSelected ? 'bg-white border-2 border-indigo-500 shadow-md transform scale-[1.02]' : 'bg-white border border-gray-100 hover:border-indigo-200 hover:shadow-md'
                       }`}
                     >
                       <button 
@@ -368,20 +434,37 @@ const ClassMaterialsPage: React.FC = () => {
                 })
               )}
             </div>
-          </div>
         </div>
       </main>
 
       {/* Fixed Bottom Controls */}
-      {selectedVideo && !videoError && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-3 md:gap-6 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-          <button 
-            onClick={handlePlayPause} 
-            disabled={!isReady}
-            className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full transition-colors shrink-0 shadow-md ${!isReady ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
-          >
-            {playing ? <Pause className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" /> : <Play className="w-5 h-5 md:w-6 md:h-6 ml-1" fill="currentColor" />}
-          </button>
+      {selectedVideo && !videoError && !isGoogleDriveUrl(selectedVideo['주소']) && !isGoogleSlidesUrl(selectedVideo['주소']) && !isGoogleSheetsUrl(selectedVideo['주소']) && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2 md:gap-4 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+          <div className="flex items-center gap-1 md:gap-2 shrink-0">
+            <button 
+              onClick={handleRewind} 
+              disabled={!isReady}
+              className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors ${!isReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Rewind className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" />
+            </button>
+            
+            <button 
+              onClick={handlePlayPause} 
+              disabled={!isReady}
+              className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full transition-colors shadow-md ${!isReady ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
+            >
+              {playing ? <Pause className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" /> : <Play className="w-5 h-5 md:w-6 md:h-6 ml-1" fill="currentColor" />}
+            </button>
+
+            <button 
+              onClick={handleFastForward} 
+              disabled={!isReady}
+              className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors ${!isReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <FastForward className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" />
+            </button>
+          </div>
           
           <div className="text-xs md:text-sm font-mono text-gray-500 shrink-0 w-10 md:w-14 text-right">
             {formatVideoTime(duration * played)}
@@ -397,8 +480,8 @@ const ClassMaterialsPage: React.FC = () => {
               onMouseDown={handleSeekMouseDown}
               onChange={handleSeekChange}
               onMouseUp={handleSeekMouseUp}
-              onTouchStart={handleSeekMouseDown}
-              onTouchEnd={handleSeekMouseUp}
+              onTouchStart={handleSeekMouseDown as any}
+              onTouchEnd={handleSeekMouseUp as any}
               className="w-full h-1.5 md:h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:h-2 md:hover:h-3 transition-all"
             />
           </div>
@@ -453,7 +536,7 @@ const ClassMaterialsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">구글 드라이브 주소 (또는 유튜브) <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">구글 드라이브/슬라이드 주소 (또는 유튜브) <span className="text-red-500">*</span></label>
                 <input 
                   type="url" 
                   value={formUrl}

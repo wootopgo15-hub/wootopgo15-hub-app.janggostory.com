@@ -165,6 +165,13 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
       return `https://www.youtube.com/embed/${ytMatch[1]}`;
     }
     
+    // Handle Google Sheets
+    const sheetRegex = /spreadsheets\/d\/([a-zA-Z0-9_-]+)/;
+    const sheetMatch = url.match(sheetRegex);
+    if (sheetMatch && sheetMatch[1]) {
+      return `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/htmlembed?widget=false&chrome=false&headers=false`;
+    }
+
     return url;
   };
 
@@ -185,6 +192,25 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
     }
 
     setIframeUrl(getEmbedUrl(url));
+  };
+
+  const handleExternalLinkClick = (url: string | undefined, status: string) => {
+    if (status !== '승인' && userData?.role !== '관리자') {
+      // 승인되지 않은 자료는 관리자만 접근 가능
+      return;
+    }
+
+    if (!url) {
+      setModalMessage("등록된 링크가 없습니다.");
+      return;
+    }
+    url = url.trim();
+    if (!url.startsWith('http')) {
+      setModalMessage("올바른 URL 형식이 아닙니다.");
+      return;
+    }
+
+    window.open(url, '_blank');
   };
 
   return (
@@ -258,7 +284,7 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
                         </button>
                       )}
                       {item['교구'] && (
-                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['교구'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-xs font-black hover:bg-amber-100 transition-colors">
+                        <button onClick={(e) => { e.stopPropagation(); handleExternalLinkClick(item['교구'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-xs font-black hover:bg-amber-100 transition-colors">
                           <Play className="w-3 h-3 fill-current" /> 교구수업
                         </button>
                       )}
@@ -475,28 +501,26 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
       {/* Iframe Modal */}
       {iframeUrl && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-200 p-4 md:p-8"
+          className="fixed inset-0 z-[100] flex flex-col bg-white animate-in fade-in duration-200"
           onContextMenu={(e) => e.preventDefault()}
         >
-          <div className="w-full h-full max-w-6xl bg-white rounded-3xl overflow-hidden shadow-2xl relative flex flex-col">
-            <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-100 shrink-0">
-              <h3 className="text-lg font-black text-[#111318]">자료 보기</h3>
-              <button 
-                onClick={() => setIframeUrl(null)}
-                className="size-10 rounded-xl bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <div className="flex-1 w-full relative bg-gray-100">
-              <iframe 
-                src={iframeUrl} 
-                className="absolute inset-0 w-full h-full border-0" 
-                allow="autoplay; fullscreen" 
-                allowFullScreen
-                referrerPolicy="no-referrer"
-              ></iframe>
-            </div>
+          <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-100 shrink-0 safe-top">
+            <h3 className="text-lg font-black text-[#111318]">자료 보기</h3>
+            <button 
+              onClick={() => setIframeUrl(null)}
+              className="size-10 rounded-xl bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div className="flex-1 w-full relative bg-gray-100">
+            <iframe 
+              src={iframeUrl} 
+              className="absolute inset-0 w-full h-full border-0" 
+              allow="autoplay; fullscreen" 
+              allowFullScreen
+              referrerPolicy="no-referrer"
+            ></iframe>
           </div>
         </div>
       )}
