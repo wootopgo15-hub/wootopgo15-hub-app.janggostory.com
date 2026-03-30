@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage';
 import ReportPage from './pages/ReportPage';
 import NoticePage from './pages/NoticePage';
 import ResourcePage from './pages/ResourcePage';
+import ClassMaterialsPage from './pages/ClassMaterialsPage';
 import ForumPage from './pages/ForumPage';
 import StatsPage from './pages/StatsPage';
 import PropsOffPage from './pages/PropsOffPage';
@@ -75,6 +76,7 @@ const App: React.FC = () => {
           <Route path="/notice" element={<NoticePage />} />
           <Route path="/report" element={<ReportPage title="보고방" type="CENTER_LIST" icon="description" color="orange-500" />} />
           <Route path="/resource" element={<ResourcePage />} />
+          <Route path="/class-materials" element={<ClassMaterialsPage />} />
           <Route path="/forum" element={<ForumPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/props-off" element={<PropsOffPage />} />

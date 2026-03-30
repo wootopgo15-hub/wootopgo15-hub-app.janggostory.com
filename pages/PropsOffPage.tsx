@@ -88,7 +88,7 @@ const PropsOffPage: React.FC = () => {
     });
 
     offDaysList.forEach(item => {
-      const dates = String(item['쉬는날']).split(',').map(d => d.trim()).filter(Boolean);
+      const dates = String(item['쉬는날']).split(',').map(d => d.split('T')[0].trim()).filter(Boolean);
       dates.forEach(dateStr => {
         const [year, month] = dateStr.split('-');
         if (year && month) {
@@ -322,7 +322,7 @@ const PropsOffPage: React.FC = () => {
           {myOffDayEntry ? (
             <button 
               onClick={() => {
-                setOffDays(myOffDayEntry['쉬는날'] ? myOffDayEntry['쉬는날'].split(',').map((d:string)=>d.trim()) : []);
+                setOffDays(myOffDayEntry['쉬는날'] ? myOffDayEntry['쉬는날'].split(',').map((d:string)=>d.split('T')[0].trim()).filter(Boolean) : []);
                 setEditItem(myOffDayEntry);
                 setModalMode('OFF');
                 setIsModalOpen(true);

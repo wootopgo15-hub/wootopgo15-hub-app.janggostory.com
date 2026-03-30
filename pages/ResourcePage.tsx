@@ -30,6 +30,7 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
   const [formLinkSong, setFormLinkSong] = useState('');
   const [formStatus, setFormStatus] = useState('대기');
   const [modalMessage, setModalMessage] = useState<string | null>(null);
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const savedData = localStorage.getItem('userData');
@@ -141,6 +142,32 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
 
 
 
+  const getEmbedUrl = (url: string) => {
+    if (!url) return '';
+    
+    // Handle Google Drive links (file/d/ID or id=ID)
+    const driveRegex = /(?:file\/d\/|id=)([a-zA-Z0-9_-]+)/;
+    const driveMatch = url.match(driveRegex);
+    if (driveMatch && driveMatch[1] && !url.includes('presentation')) {
+      return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    }
+
+    // Handle Google Slides
+    const slideRegex = /presentation\/d\/([a-zA-Z0-9_-]+)/;
+    const slideMatch = url.match(slideRegex);
+    if (slideMatch && slideMatch[1]) {
+      return `https://docs.google.com/presentation/d/${slideMatch[1]}/preview`;
+    }
+    
+    // Handle YouTube links as fallback
+    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    if (ytMatch && ytMatch[1]) {
+      return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    }
+    
+    return url;
+  };
+
   const handleLinkClick = (url: string | undefined, status: string) => {
     if (status !== '승인' && userData?.role !== '관리자') {
       // 승인되지 않은 자료는 관리자만 접근 가능
@@ -157,8 +184,7 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
       return;
     }
 
-    // 구글 슬라이드 앱(또는 새 창)으로 바로 연결
-    window.open(url, '_blank', 'noopener,noreferrer');
+    setIframeUrl(getEmbedUrl(url));
   };
 
   return (
@@ -214,32 +240,37 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
                   <p className="text-[10px] text-gray-500 font-bold mt-0.5 mb-2">
                     {item['이름']} · <span className="font-medium">{item['이메일']}</span>
                   </p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {item['음악'] && (
-                      <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['음악'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition-colors">
-                        <Play className="w-3 h-3 fill-current" /> 음악 수업 시작
-                      </button>
-                    )}
-                    {item['전래'] && (
-                      <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['전래'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-xl text-xs font-black hover:bg-purple-100 transition-colors">
-                        <Play className="w-3 h-3 fill-current" /> 전래 수업 시작
-                      </button>
-                    )}
-                    {item['체조'] && (
-                      <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['체조'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-xl text-xs font-black hover:bg-green-100 transition-colors">
-                        <Play className="w-3 h-3 fill-current" /> 체조 수업 시작
-                      </button>
-                    )}
-                    {item['교구'] && (
-                      <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['교구'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-xs font-black hover:bg-amber-100 transition-colors">
-                        <Play className="w-3 h-3 fill-current" /> 교구 수업 시작
-                      </button>
-                    )}
-                    {item['노래'] && (
-                      <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['노래'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-xs font-black hover:bg-rose-100 transition-colors">
-                        <Play className="w-3 h-3 fill-current" /> 노래 수업 시작
-                      </button>
-                    )}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mt-2 w-full">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {item['음악'] && (
+                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['음악'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition-colors">
+                          <Play className="w-3 h-3 fill-current" /> 음악수업
+                        </button>
+                      )}
+                      {item['전래'] && (
+                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['전래'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-xl text-xs font-black hover:bg-purple-100 transition-colors">
+                          <Play className="w-3 h-3 fill-current" /> 전래수업
+                        </button>
+                      )}
+                      {item['체조'] && (
+                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['체조'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-xl text-xs font-black hover:bg-green-100 transition-colors">
+                          <Play className="w-3 h-3 fill-current" /> 체조수업
+                        </button>
+                      )}
+                      {item['교구'] && (
+                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['교구'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-xs font-black hover:bg-amber-100 transition-colors">
+                          <Play className="w-3 h-3 fill-current" /> 교구수업
+                        </button>
+                      )}
+                      {item['노래'] && (
+                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['노래'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-xs font-black hover:bg-rose-100 transition-colors">
+                          <Play className="w-3 h-3 fill-current" /> 노래수업
+                        </button>
+                      )}
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); navigate('/class-materials'); }} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-colors ml-auto shrink-0">
+                      <Play className="w-3 h-3 fill-current" /> 수업준비
+                    </button>
                   </div>
                 </div>
 
@@ -437,6 +468,35 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
             >
               확인
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Iframe Modal */}
+      {iframeUrl && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-200 p-4 md:p-8"
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="w-full h-full max-w-6xl bg-white rounded-3xl overflow-hidden shadow-2xl relative flex flex-col">
+            <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-100 shrink-0">
+              <h3 className="text-lg font-black text-[#111318]">자료 보기</h3>
+              <button 
+                onClick={() => setIframeUrl(null)}
+                className="size-10 rounded-xl bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="flex-1 w-full relative bg-gray-100">
+              <iframe 
+                src={iframeUrl} 
+                className="absolute inset-0 w-full h-full border-0" 
+                allow="autoplay; fullscreen" 
+                allowFullScreen
+                referrerPolicy="no-referrer"
+              ></iframe>
+            </div>
           </div>
         </div>
       )}
