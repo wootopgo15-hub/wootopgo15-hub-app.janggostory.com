@@ -20,7 +20,7 @@ const PropsOffPage: React.FC = () => {
   const [brokenQuantity, setBrokenQuantity] = useState('');
   const [lostQuantity, setLostQuantity] = useState('');
   const [offDays, setOffDays] = useState<string[]>([]);
-  const [week, setWeek] = useState('1주차');
+  const [week, setWeek] = useState('');
   const [selectedWeek, setSelectedWeek] = useState('전체');
 
   useEffect(() => {
@@ -217,9 +217,23 @@ const PropsOffPage: React.FC = () => {
     e.preventDefault();
     if (!userData) return;
 
-    if (modalMode === 'PROP' && !propName.trim()) {
-      setModalMessage('교구명을 입력해야 합니다.');
-      return;
+    if (modalMode === 'PROP') {
+      if (!week) {
+        setModalMessage('주차를 선택해야 합니다.');
+        return;
+      }
+      if (!courseName) {
+        setModalMessage('수업명을 선택해야 합니다.');
+        return;
+      }
+      if (!propName.trim()) {
+        setModalMessage('교구명을 입력해야 합니다.');
+        return;
+      }
+      if (!normalQuantity) {
+        setModalMessage('정상 수량을 입력해야 합니다.');
+        return;
+      }
     }
     
     if (modalMode === 'OFF' && offDays.length === 0) {
@@ -414,7 +428,7 @@ const PropsOffPage: React.FC = () => {
               setNormalQuantity('');
               setBrokenQuantity('');
               setLostQuantity('');
-              setWeek('1주차');
+              setWeek('');
               setEditItem(null);
               setModalMode('PROP');
               setIsModalOpen(true);
@@ -505,7 +519,7 @@ const PropsOffPage: React.FC = () => {
                                               setNormalQuantity(item['정상수량'] || '');
                                               setBrokenQuantity(item['파손수량'] || '');
                                               setLostQuantity(item['분실수량'] || '');
-                                              setWeek(item['주차'] || '1주차');
+                                              setWeek(item['주차'] || '');
                                               setEditItem(item);
                                               setModalMode('PROP');
                                               setIsModalOpen(true);

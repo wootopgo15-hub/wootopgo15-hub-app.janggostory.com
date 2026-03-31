@@ -15,7 +15,8 @@ const SHEET_MAP: Record<string, string> = {
   'STATISTICS': 'STATISTICS', // 통계 시트 추가
   'CENTER_LIST': 'REPORT', // 보고방 데이터 리스트 (백엔드에서는 REPORT로 인식)
   'CENTER': 'CENTER_LIST', // 센터 리스트 (백엔드에서는 CENTER_LIST로 인식)
-  'PROPS_OFF': 'PROPS_OFF' // 교구&오프 시트
+  'PROPS_OFF': 'PROPS_OFF', // 교구&오프 시트
+  'CLASS_MATERIALS': 'CLASS_MATERIALS' // 수업준비 영상 자료 시트
 };
 
 /**
