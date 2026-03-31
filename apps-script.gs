@@ -12,8 +12,7 @@ const SHEET_MAP = {
   'STATS': 'STATS',
   'CENTER_LIST': 'CENTER',
   'DEMENTIA': 'DEMENTIA',
-  'PROPS_OFF': 'PROPS_OFF',
-  'CLASS_MATERIALS': 'CLASS_MATERIALS'
+  'PROPS_OFF': 'PROPS_OFF'
 };
 
 // 현재 연결된 스프레드시트를 자동으로 가져오는 함수

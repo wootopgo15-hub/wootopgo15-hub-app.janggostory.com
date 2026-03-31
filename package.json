@@ -1,95 +1,29 @@
-
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#9ca3af">
-    <title>Janggo2026 - janggo Education Development Institute</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#135bec",
-                        "accent": "#135bec",
-                        "background-light": "#f6f6f8",
-                        "background-dark": "#101622",
-                    },
-                    fontFamily: {
-                        "display": ["Lato", "Noto Sans KR", "sans-serif"],
-                        "sans": ["Lato", "Noto Sans KR", "sans-serif"]
-                    },
-                    borderRadius: {
-                        "xl": "1.5rem",
-                        "2xl": "2rem",
-                        "3xl": "3rem",
-                        "full": "9999px"
-                    },
-                },
-            },
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Lato', 'Noto Sans KR', sans-serif;
-            background-color: #f6f6f8;
-        }
-        .glass-effect {
-            background: rgba(230, 230, 230, 0.7);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-        }
-        .input-glass {
-            background: rgba(255, 255, 255, 0.4);
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(19, 91, 236, 0.2);
-            border-radius: 10px;
-        }
-        .safe-top {
-            padding-top: calc(env(safe-area-inset-top) + 2rem) !important;
-        }
-        .safe-bottom {
-            padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem) !important;
-        }
-        .safe-mb {
-            margin-bottom: calc(env(safe-area-inset-bottom) + 0.5rem) !important;
-        }
-        
-        /* 구글 애드센스 전면광고(Vignette) 닫기 버튼이 노치/상태바에 가려지는 현상 수정 */
-        .adsbygoogle-noablate,
-        div[style*="z-index: 2147483647"] {
-            padding-top: env(safe-area-inset-top) !important;
-            box-sizing: border-box !important;
-        }
-    </style>
-<script type="importmap">
 {
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0"
+  "name": "janggo2026-portal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.14.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
   }
 }
-</script>
-<link rel="stylesheet" href="/index.css">
-    <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-app-pub-7204177319630647~5112973565" crossorigin="anonymous"></script>
-</head>
-<body class="antialiased">
-    <div id="root"></div>
-<script type="module" src="/index.tsx"></script>
-</body>
-</html>
