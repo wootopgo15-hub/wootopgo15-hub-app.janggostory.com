@@ -13,6 +13,7 @@ import ClassMaterialsPage from './pages/ClassMaterialsPage';
 import ForumPage from './pages/ForumPage';
 import StatsPage from './pages/StatsPage';
 import PropsOffPage from './pages/PropsOffPage';
+import SalaryPage from './pages/SalaryPage';
 import PropsReminder from './components/PropsReminder';
 
 const App: React.FC = () => {
@@ -80,6 +81,7 @@ const App: React.FC = () => {
           <Route path="/forum" element={<ForumPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/props-off" element={<PropsOffPage />} />
+          <Route path="/salary" element={<SalaryPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

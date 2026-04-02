@@ -147,6 +147,7 @@ function doPost(e) {
       case 'SIGNUP': return handleSignup(data);
       case 'APPEND': return handleAppend(data);
       case 'UPDATE': return handleUpdate(data);
+      case 'UPDATE_USER_BY_NAME': return handleUpdateUserByName(data);
       case 'DELETE': return handleDelete(data); // ★ DELETE 모드 추가
       default: return createTextResponse("Invalid mode");
     }
@@ -271,6 +272,48 @@ function handleUpdate(data) {
     return createTextResponse("UPDATE Success");
   } else {
     return createTextResponse("Row to update not found");
+  }
+}
+
+// ★ 새로 추가된 UPDATE_USER_BY_NAME 핸들러 함수 (이름과 지사로 유저 찾아서 업데이트)
+function handleUpdateUserByName(data) {
+  const sheetName = SHEET_MAP['USER'];
+  if (!sheetName) return createTextResponse("Invalid sheet type for UPDATE_USER_BY_NAME");
+
+  const sheet = getActiveSheetByName(sheetName);
+  if (!sheet) return createTextResponse(`${sheetName} sheet not found`);
+
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow === 0 || lastCol === 0) return createTextResponse("Sheet is empty");
+
+  const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = sheetData[0].map(h => String(h).trim());
+  
+  const nameIndex = headers.indexOf('이름');
+  const branchIndex = headers.indexOf('지사');
+
+  if (nameIndex === -1) return createTextResponse("이름 column not found");
+
+  const targetName = String(data['이름']).trim();
+  const targetBranch = data['지사'] ? String(data['지사']).trim() : null;
+
+  const rowIndex = sheetData.findIndex((row, idx) => {
+    if (idx === 0) return false;
+    const nameMatch = String(row[nameIndex]).trim() === targetName;
+    const branchMatch = targetBranch && branchIndex !== -1 ? String(row[branchIndex]).trim() === targetBranch : true;
+    return nameMatch && branchMatch;
+  });
+
+  if (rowIndex > 0) { 
+    const newRow = headers.map(header => {
+      if (data[header] !== undefined) return data[header];
+      return sheetData[rowIndex][headers.indexOf(header)];
+    });
+    sheet.getRange(rowIndex + 1, 1, 1, newRow.length).setValues([newRow]);
+    return createTextResponse("UPDATE_USER_BY_NAME Success");
+  } else {
+    return createTextResponse("User to update not found");
   }
 }
 

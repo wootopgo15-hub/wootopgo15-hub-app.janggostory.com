@@ -9,6 +9,18 @@ const StatsPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [userData, setUserData] = useState<any>(null);
 
+  const loadData = async (forceRefresh = false) => {
+    setLoading(true);
+    try {
+      const data = await fetchSheetData('REPORT', !forceRefresh);
+      setReportData(data);
+    } catch (error) {
+      console.error('Failed to load report data for stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const savedData = localStorage.getItem('userData');
     if (savedData) {
@@ -22,19 +34,12 @@ const StatsPage: React.FC = () => {
     }
 
     // Fetch fresh data
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const data = await fetchSheetData('REPORT', true);
-        setReportData(data);
-      } catch (error) {
-        console.error('Failed to load report data for stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadData();
   }, []);
+
+  const handleRefresh = () => {
+    loadData(true);
+  };
 
   const stats = useMemo(() => {
     const map = new Map<string, { name: string; subjects: Set<string>; currentMonthCount: number; totalCount: number }>();
@@ -75,7 +80,7 @@ const StatsPage: React.FC = () => {
         try {
           // Handle various date formats
           let dateObj: Date;
-          const match = String(dateVal).match(/(\d{4})[.-]\s?(\d{1,2})[.-]\s?(\d{1,2})/);
+          const match = String(dateVal).match(/(\d{4})[./-년]\s?(\d{1,2})[./-월]\s?(\d{1,2})/);
           if (match) {
             dateObj = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
           } else {
@@ -119,6 +124,14 @@ const StatsPage: React.FC = () => {
             <p className="text-[8px] text-blue-500 font-black uppercase tracking-[0.2em] mt-1">Analytics Hub</p>
           </div>
         </div>
+        <button 
+          onClick={handleRefresh}
+          disabled={loading}
+          className="flex items-center gap-1 px-3 py-1.5 bg-gray-50 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+        >
+          <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`}>refresh</span>
+          새로고침
+        </button>
       </header>
 
       <div className="px-6 py-6 space-y-4">
