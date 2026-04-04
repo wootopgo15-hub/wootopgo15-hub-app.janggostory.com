@@ -471,7 +471,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
       {/* Details Modal */}
       {isDetailsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
-          <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80dvh] animate-fade-in">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white sticky top-0 z-10">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <span className="size-1.5 bg-primary rounded-full"></span>
@@ -482,7 +482,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+            <div className="p-6 pb-12 overflow-y-auto custom-scrollbar flex-1">
               {filteredList.length > 0 ? (
                 <div className="grid gap-3">
                   {filteredList.map((item, idx) => (
@@ -521,7 +521,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-[2rem] p-6 sm:p-10 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="w-full max-w-md bg-white rounded-[2rem] p-6 pb-12 sm:p-10 sm:pb-12 animate-in fade-in zoom-in-95 duration-200 max-h-[80dvh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-black">{editItem ? '보고서 수정' : `${title} 작성`}</h2>
               <button onClick={() => setIsModalOpen(false)} className="size-10 rounded-xl bg-gray-50 flex items-center justify-center"><span className="material-symbols-outlined">close</span></button>
