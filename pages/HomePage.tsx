@@ -71,7 +71,7 @@ const HomePage: React.FC = () => {
     { id: 'forum', path: '/forum', name: '소통방', sub: 'Comm. Room', icon: 'forum', bg: 'bg-emerald-50', text: 'text-emerald-500' },
     { id: 'stats', path: '/stats', name: '통계방', sub: 'Analytics Room', icon: 'leaderboard', bg: 'bg-blue-50', text: 'text-blue-500' },
     { id: 'props_off', path: '/props-off', name: '교구&오프', sub: 'Props & Time-off', icon: 'inventory_2', bg: 'bg-rose-50', text: 'text-rose-500' },
-    ...(userRole === '관리자' || userRole === '부관리자' ? [{ id: 'salary', path: '/salary', name: '급여관리', sub: 'Salary Mgmt', icon: 'payments', bg: 'bg-teal-50', text: 'text-teal-500' }] : []),
+    ...(userRole === '관리자' || userRole === '부관리자' ? [{ id: 'salary', path: '/salary', name: '급여관리(지사장만보임)', sub: 'Salary Mgmt', icon: 'payments', bg: 'bg-teal-50', text: 'text-teal-500' }] : []),
   ];
 
   return (

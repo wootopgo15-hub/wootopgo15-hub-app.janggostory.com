@@ -18,6 +18,7 @@ const SalaryPage: React.FC = () => {
   const [residentNumbers, setResidentNumbers] = useState<Record<string, string>>({});
   const [savingResidentNumber, setSavingResidentNumber] = useState<string | null>(null);
   const [instructorPositions, setInstructorPositions] = useState<Record<string, string>>({});
+  const [instructorNotes, setInstructorNotes] = useState<Record<string, string>>({});
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
 
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -425,10 +426,22 @@ const SalaryPage: React.FC = () => {
       const originalSelects = el.querySelectorAll('select');
       const clonedSelects = clone.querySelectorAll('select');
       originalSelects.forEach((select, index) => {
-        const span = document.createElement('span');
-        span.textContent = select.value;
-        span.className = select.className;
-        clonedSelects[index].parentNode?.replaceChild(span, clonedSelects[index]);
+        const div = document.createElement('div');
+        div.textContent = select.value;
+        div.className = select.className;
+        div.style.display = 'block';
+        clonedSelects[index].parentNode?.replaceChild(div, clonedSelects[index]);
+      });
+
+      // Copy input values to the clone
+      const originalInputs = el.querySelectorAll('input');
+      const clonedInputs = clone.querySelectorAll('input');
+      originalInputs.forEach((input, index) => {
+        const div = document.createElement('div');
+        div.textContent = input.value;
+        div.className = input.className;
+        div.style.display = 'block';
+        clonedInputs[index].parentNode?.replaceChild(div, clonedInputs[index]);
       });
 
       wrapper.appendChild(clone);
@@ -935,7 +948,10 @@ const SalaryPage: React.FC = () => {
                       let totalPositiveDiff = 0;
                       let totalNegativeDiff = 0;
                       uniqueCenters.forEach(center => {
-                        const diff = center.count - 4;
+                        let diff = center.count - 4;
+                        if (center.count === 1 || center.count === 2) {
+                          diff = center.count;
+                        }
                         if (diff > 0) totalPositiveDiff += diff;
                         if (diff < 0) totalNegativeDiff += Math.abs(diff);
                       });
@@ -1001,16 +1017,25 @@ const SalaryPage: React.FC = () => {
                             </thead>
                             <tbody>
                               {uniqueCenters.map((center, idx) => {
-                                const diff = center.count - 4;
+                                let diff = center.count - 4;
+                                if (center.count === 1 || center.count === 2) {
+                                  diff = center.count;
+                                }
                                 return (
                                   <tr key={idx}>
                                     <td className="border border-gray-300 px-3 py-3 text-center align-middle leading-none">{idx + 1}</td>
-                                    <td className="border border-gray-300 px-3 py-3 align-middle leading-none">{center.name}</td>
-                                    <td className="border border-gray-300 px-3 py-3 text-center align-middle leading-none">{center.count}</td>
-                                    <td className={`border border-gray-300 px-3 py-3 text-center font-bold align-middle leading-none ${diff > 0 ? 'text-blue-600' : diff < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-                                      {diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : '0'}
+                                    <td className="border border-gray-300 p-0 align-middle leading-none">
+                                      <input defaultValue={center.name} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-3 py-3 text-gray-900 outline-none text-left" />
                                     </td>
-                                    <td className="border border-gray-300 px-3 py-3 align-middle leading-none">{center.note}</td>
+                                    <td className="border border-gray-300 p-0 align-middle leading-none">
+                                      <input defaultValue={center.count} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-3 py-3 text-gray-900 outline-none text-center" />
+                                    </td>
+                                    <td className="border border-gray-300 p-0 align-middle leading-none">
+                                      <input defaultValue={diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : '0'} className={`w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-3 py-3 outline-none text-center font-bold ${diff > 0 ? 'text-blue-600' : diff < 0 ? 'text-red-600' : 'text-gray-900'}`} />
+                                    </td>
+                                    <td className="border border-gray-300 p-0 align-middle leading-none">
+                                      <input defaultValue={center.note} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-3 py-3 text-gray-900 outline-none text-left" placeholder="비고 입력" />
+                                    </td>
                                   </tr>
                                 );
                               })}
@@ -1033,10 +1058,24 @@ const SalaryPage: React.FC = () => {
                             </thead>
                             <tbody>
                               <tr>
-                                <td className="border border-gray-300 px-3 py-3 text-right align-middle leading-none">{additional > 0 ? formatCurrency(additional) : ''}</td>
-                                <td className="border border-gray-300 px-3 py-3 text-center align-middle text-red-600 font-bold leading-none">{totalNegativeDiff > 0 ? totalNegativeDiff : ''}</td>
-                                <td className="border border-gray-300 px-3 py-3 text-center align-middle text-blue-600 font-bold leading-none">{totalPositiveDiff > 0 ? totalPositiveDiff : ''}</td>
-                                <td className="border border-gray-300 px-3 py-3 align-middle leading-none"></td>
+                                <td className="border border-gray-300 p-0 align-middle leading-none">
+                                  <input defaultValue={additional > 0 ? formatCurrency(additional) : ''} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-3 py-3 text-gray-900 outline-none text-right" />
+                                </td>
+                                <td className="border border-gray-300 p-0 align-middle leading-none">
+                                  <input defaultValue={totalNegativeDiff > 0 ? totalNegativeDiff : ''} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-3 py-3 outline-none text-center text-red-600 font-bold" />
+                                </td>
+                                <td className="border border-gray-300 p-0 align-middle leading-none">
+                                  <input defaultValue={totalPositiveDiff > 0 ? totalPositiveDiff : ''} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-3 py-3 outline-none text-center text-blue-600 font-bold" />
+                                </td>
+                                <td className="border border-gray-300 p-0 align-middle leading-none">
+                                  <input
+                                    type="text"
+                                    value={instructorNotes[key] || ''}
+                                    onChange={(e) => setInstructorNotes({...instructorNotes, [key]: e.target.value})}
+                                    className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-3 py-3 text-gray-900 placeholder-gray-300 outline-none print:placeholder-transparent"
+                                    placeholder="비고 입력"
+                                  />
+                                </td>
                               </tr>
                             </tbody>
                           </table>
@@ -1046,19 +1085,27 @@ const SalaryPage: React.FC = () => {
                               <tbody>
                                 <tr>
                                   <th className="border border-gray-300 bg-gray-100 px-4 py-3 text-left w-32 align-middle leading-none">수업시간</th>
-                                  <td className="border border-gray-300 px-4 py-3 text-right font-bold align-middle leading-none">{row.count}</td>
+                                  <td className="border border-gray-300 p-0 align-middle leading-none">
+                                    <input defaultValue={row.count} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-4 py-3 text-gray-900 outline-none text-right font-bold" />
+                                  </td>
                                 </tr>
                                 <tr>
                                   <th className="border border-gray-300 bg-gray-100 px-4 py-3 text-left align-middle leading-none">확인</th>
-                                  <td className="border border-gray-300 px-4 py-3 align-middle leading-none"></td>
+                                  <td className="border border-gray-300 p-0 align-middle leading-none">
+                                    <input defaultValue="" className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-4 py-3 text-gray-900 outline-none text-right" />
+                                  </td>
                                 </tr>
                                 <tr>
                                   <th className="border border-gray-300 bg-gray-100 px-4 py-3 text-left align-middle leading-none">세전</th>
-                                  <td className="border border-gray-300 px-4 py-3 text-right font-bold text-blue-600 align-middle leading-none">{formatCurrency(totalIncome)}</td>
+                                  <td className="border border-gray-300 p-0 align-middle leading-none">
+                                    <input defaultValue={formatCurrency(totalIncome)} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-4 py-3 outline-none text-right font-bold text-blue-600" />
+                                  </td>
                                 </tr>
                                 <tr>
                                   <th className="border border-gray-300 bg-gray-100 px-4 py-3 text-left align-middle leading-none">세후</th>
-                                  <td className="border border-gray-300 px-4 py-3 text-right font-black text-teal-600 text-lg align-middle leading-none">{formatCurrency(payment)}</td>
+                                  <td className="border border-gray-300 p-0 align-middle leading-none">
+                                    <input defaultValue={formatCurrency(payment)} className="w-full h-full min-h-[42px] bg-transparent border-none focus:ring-0 px-4 py-3 outline-none text-right font-black text-teal-600 text-lg" />
+                                  </td>
                                 </tr>
                               </tbody>
                             </table>
