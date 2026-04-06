@@ -939,7 +939,7 @@ const SalaryPage: React.FC = () => {
                         return acc;
                       }, {} as Record<string, { count: number, notes: string[] }>);
 
-                      const uniqueCenters = Object.entries(centerGroups).map(([name, data]) => ({
+                      const uniqueCenters = Object.entries(centerGroups).map(([name, data]: [string, any]) => ({
                         name,
                         count: data.count,
                         note: Array.from(new Set(data.notes)).join(', ')

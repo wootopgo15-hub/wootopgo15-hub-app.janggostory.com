@@ -31,17 +31,33 @@ export const submitToGoogleSheets = async (data: any): Promise<boolean> => {
     }
 
     // POST는 시트 쓰기용
-    const response = await fetch(WEB_APP_URL, {
-      method: 'POST',
-      cache: 'no-cache',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-    });
+    let response;
+    let retries = 3;
+    let lastError;
 
-    if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+    while (retries > 0) {
+      try {
+        response = await fetch(WEB_APP_URL, {
+          method: 'POST',
+          mode: 'cors',
+          redirect: 'follow',
+          cache: 'no-cache',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify(payload),
+        });
+        break;
+      } catch (err) {
+        lastError = err;
+        retries--;
+        if (retries === 0) throw err;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    if (!response || !response.ok) {
+      throw new Error(`HTTP Error: ${response?.status}`);
     }
 
     const text = await response.text();
@@ -67,8 +83,11 @@ export const submitToGoogleSheets = async (data: any): Promise<boolean> => {
     }
 
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Submit Error:', error);
+    if (error.message === 'Failed to fetch') {
+      throw new Error('네트워크 오류가 발생했습니다. 브라우저의 보안 설정(타사 쿠키 차단 등) 때문일 수 있습니다. 새 탭에서 열거나 광고 차단기를 일시 중지해주세요.');
+    }
     throw error;
   }
 };
@@ -112,10 +131,30 @@ export const fetchSheetData = async (type: string = 'USER', forceRefresh: boolea
     // 2. 네트워크 요청
     console.log(`[Network Fetch] ${type} (mapped to ${mappedType})`);
     const fetchUrl = `${WEB_APP_URL}?type=${mappedType}&t=${Date.now()}`;
-    const response = await fetch(fetchUrl);
+    
+    let response;
+    let retries = 3;
+    let lastError;
+    
+    while (retries > 0) {
+      try {
+        response = await fetch(fetchUrl, {
+          method: 'GET',
+          mode: 'cors',
+          redirect: 'follow'
+        });
+        break; // 성공하면 루프 탈출
+      } catch (err) {
+        lastError = err;
+        retries--;
+        if (retries === 0) throw err;
+        // 1초 대기 후 재시도
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
 
-    if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+    if (!response || !response.ok) {
+      throw new Error(`HTTP Error: ${response?.status}`);
     }
 
     const text = await response.text();
@@ -150,6 +189,10 @@ export const fetchSheetData = async (type: string = 'USER', forceRefresh: boolea
       return JSON.parse(fallbackData);
     }
     
+    if (error.message === 'Failed to fetch') {
+      throw new Error('네트워크 오류가 발생했습니다. 브라우저의 보안 설정(타사 쿠키 차단 등) 때문일 수 있습니다. 새 탭에서 열거나 광고 차단기를 일시 중지해주세요.');
+    }
+    
     throw error;
   }
 };
@@ -160,7 +203,11 @@ export const fetchSheetData = async (type: string = 'USER', forceRefresh: boolea
 export const fetchSlidePages = async (presentationId: string): Promise<string[]> => {
   try {
     const fetchUrl = `${WEB_APP_URL}?type=SLIDE_PAGES&presentationId=${presentationId}&t=${Date.now()}`;
-    const response = await fetch(fetchUrl);
+    const response = await fetch(fetchUrl, {
+      method: 'GET',
+      mode: 'cors',
+      redirect: 'follow'
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
@@ -174,8 +221,11 @@ export const fetchSlidePages = async (presentationId: string): Promise<string[]>
     }
 
     return Array.isArray(data) ? data : ['p'];
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fetch Slide Pages Error:', error);
+    if (error.message === 'Failed to fetch') {
+      console.warn('네트워크 오류가 발생했습니다. 브라우저의 보안 설정(타사 쿠키 차단 등) 때문일 수 있습니다.');
+    }
     return ['p']; // 에러 발생 시 기본 페이지 반환
   }
 };
@@ -186,7 +236,11 @@ export const fetchSlidePages = async (presentationId: string): Promise<string[]>
 export const fetchSlideImageBase64 = async (presentationId: string, pageId: string): Promise<string | null> => {
   try {
     const fetchUrl = `${WEB_APP_URL}?type=SLIDE_IMAGE&presentationId=${presentationId}&pageId=${pageId}&t=${Date.now()}`;
-    const response = await fetch(fetchUrl);
+    const response = await fetch(fetchUrl, {
+      method: 'GET',
+      mode: 'cors',
+      redirect: 'follow'
+    });
     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
     
     const data = await response.json();
@@ -194,8 +248,11 @@ export const fetchSlideImageBase64 = async (presentationId: string, pageId: stri
       return data.base64;
     }
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fetch Slide Image Error:', error);
+    if (error.message === 'Failed to fetch') {
+      console.warn('네트워크 오류가 발생했습니다. 브라우저의 보안 설정(타사 쿠키 차단 등) 때문일 수 있습니다.');
+    }
     return null;
   }
 };
@@ -206,7 +263,11 @@ export const fetchSlideImageBase64 = async (presentationId: string, pageId: stri
 export const fetchSlideVideos = async (presentationId: string, pageId: string): Promise<string[]> => {
   try {
     const fetchUrl = `${WEB_APP_URL}?type=SLIDE_VIDEOS&presentationId=${presentationId}&pageId=${pageId}&t=${Date.now()}`;
-    const response = await fetch(fetchUrl);
+    const response = await fetch(fetchUrl, {
+      method: 'GET',
+      mode: 'cors',
+      redirect: 'follow'
+    });
     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
     
     const data = await response.json();
@@ -214,8 +275,11 @@ export const fetchSlideVideos = async (presentationId: string, pageId: string): 
       return data.videos;
     }
     return [];
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fetch Slide Videos Error:', error);
+    if (error.message === 'Failed to fetch') {
+      console.warn('네트워크 오류가 발생했습니다. 브라우저의 보안 설정(타사 쿠키 차단 등) 때문일 수 있습니다.');
+    }
     return [];
   }
 };
