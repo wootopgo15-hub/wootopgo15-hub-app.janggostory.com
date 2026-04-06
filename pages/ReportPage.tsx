@@ -425,7 +425,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
                   <div className="w-full px-0.5 space-y-px overflow-hidden flex-1">
                     {dayData.slice(0, 4).map((item, idx) => {
                       const centerName = item['센터'] || item['지사'] || '알수없음';
-                      const mobileCenterName = centerName.length > 3 ? centerName.substring(0, 3) + '...' : centerName;
+                      const mobileCenterName = centerName.length > 5 ? centerName.substring(0, 5) + '...' : centerName;
                       // 센터 이름 기반으로 고정된 랜덤 색상 선택
                       const colorIdx = centerName.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % rainbowColors.length;
                       return (

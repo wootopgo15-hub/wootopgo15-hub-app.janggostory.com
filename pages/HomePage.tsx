@@ -150,8 +150,12 @@ const HomePage: React.FC = () => {
                                     <span className="material-symbols-outlined text-primary text-xl">person</span>
                                 </div>
                                 <div>
-                                    <p className="font-bold text-sm text-[#0a1931]">
-                                        {user.name} <span className="text-xs font-medium text-gray-500 ml-1">({user.department || '과목없음'} / {user.branch || '지사없음'})</span>
+                                    <p className="font-bold text-sm text-[#0a1931] flex items-center gap-1.5">
+                                        <span className="bg-gray-200 text-gray-700 text-[10px] px-1.5 py-0.5 rounded-md">
+                                            {user.location || (user.branch || '본사')}
+                                        </span>
+                                        {user.name} 
+                                        <span className="text-xs font-medium text-gray-500">({user.department || '과목없음'})</span>
                                     </p>
                                 </div>
                             </li>

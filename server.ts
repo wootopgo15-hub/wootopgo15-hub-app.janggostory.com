@@ -32,7 +32,13 @@ async function createServer() {
       try {
         const data = JSON.parse(message.toString());
         if (data.type === 'LOGIN') {
-          clients.set(ws, { name: data.name, email: data.email, branch: data.branch, department: data.department });
+          clients.set(ws, { 
+            name: data.name, 
+            email: data.email, 
+            branch: data.branch, 
+            department: data.department,
+            location: data.location
+          });
           broadcastUserList();
         }
       } catch (error) {
@@ -55,13 +61,24 @@ async function createServer() {
 
   function broadcastUserList() {
     const userList = Array.from(clients.values());
-    const message = JSON.stringify({ type: 'USER_LIST', users: userList });
+    
+    // 중복 접속자 필터링 (이메일 또는 이름 기준)
+    const uniqueUsersMap = new Map();
+    userList.forEach(user => {
+      const key = user.email || user.name;
+      if (key && !uniqueUsersMap.has(key)) {
+        uniqueUsersMap.set(key, user);
+      }
+    });
+    const uniqueUsers = Array.from(uniqueUsersMap.values());
+
+    const message = JSON.stringify({ type: 'USER_LIST', users: uniqueUsers });
     wss.clients.forEach((client) => {
       if (client.readyState === client.OPEN) {
         client.send(message);
       }
     });
-    console.log('Broadcasted user list:', userList.length, 'users');
+    console.log('Broadcasted user list:', uniqueUsers.length, 'users');
   }
 
   // 2. Vite 미들웨어 설정 (개발 환경)

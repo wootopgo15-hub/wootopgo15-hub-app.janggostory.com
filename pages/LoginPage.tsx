@@ -56,6 +56,7 @@ const LoginPage: React.FC = () => {
     localStorage.setItem('userName', foundUser['이름']);
     localStorage.setItem('userRole', foundUser['등급'] || foundUser['role']);
     
+    window.dispatchEvent(new Event('login_success'));
     navigate('/home');
   };
 

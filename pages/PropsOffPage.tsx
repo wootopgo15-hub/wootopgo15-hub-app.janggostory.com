@@ -90,7 +90,17 @@ const PropsOffPage: React.FC = () => {
     offDaysList.forEach(item => {
       const dates = String(item['쉬는날']).split(',').map(d => d.split('T')[0].trim()).filter(Boolean);
       dates.forEach(dateStr => {
-        const [year, month] = dateStr.split('-');
+        let year, month;
+        if (dateStr === '없음') {
+          const ts = new Date(item['타임스탬프'] || Date.now());
+          year = ts.getFullYear().toString();
+          month = (ts.getMonth() + 1).toString().padStart(2, '0');
+        } else {
+          const parts = dateStr.split('-');
+          year = parts[0];
+          month = parts[1];
+        }
+        
         if (year && month) {
           const monthKey = `${year}년 ${parseInt(month, 10)}월`;
           if (!grouped[monthKey]) {
@@ -201,12 +211,19 @@ const PropsOffPage: React.FC = () => {
     if (offDays.includes(value)) {
       setOffDays(prev => prev.filter(d => d !== value));
     } else {
-      if (offDays.length >= 5) {
+      if (offDays.length >= 5 && !offDays.includes('없음')) {
         setModalMessage('쉬는 날은 5일까지만 선택 가능합니다.');
         return;
       }
-      setOffDays(prev => [...prev, value].sort());
+      setOffDays(prev => {
+        const filtered = prev.filter(d => d !== '없음');
+        return [...filtered, value].sort();
+      });
     }
+  };
+
+  const handleNoOffDay = () => {
+    setOffDays(['없음']);
   };
 
   const removeOffDay = (dateToRemove: string) => {
@@ -658,12 +675,21 @@ const PropsOffPage: React.FC = () => {
                     다음주 쉬는 날 (5주차만 가능)
                   </h3>
                   <div className="space-y-3">
-                    <div className="relative w-full h-12 rounded-xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-rose-500/20 transition-all overflow-hidden">
-                      <input 
-                        type="date"
-                        onChange={handleAddOffDay}
-                        className="w-full h-full px-4 bg-transparent border-none outline-none font-bold text-sm cursor-pointer" 
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1 h-12 rounded-xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-rose-500/20 transition-all overflow-hidden">
+                        <input 
+                          type="date"
+                          onChange={handleAddOffDay}
+                          className="w-full h-full px-4 bg-transparent border-none outline-none font-bold text-sm cursor-pointer" 
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleNoOffDay}
+                        className={`h-12 px-4 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${offDays.includes('없음') ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/30' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      >
+                        쉬는날 없음
+                      </button>
                     </div>
                     
                     {offDays.length > 0 && (
