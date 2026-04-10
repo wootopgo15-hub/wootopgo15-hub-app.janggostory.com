@@ -41,6 +41,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
   const [newCenterBranch, setNewCenterBranch] = useState('');
   const [newCenterStatus, setNewCenterStatus] = useState('승인');
   const [isAddingCenter, setIsAddingCenter] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const filteredCenters = useMemo(() => {
     const trimmedInput = formCenter.trim();
@@ -164,19 +165,27 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
       const userBranch = String(userData.branch).trim();
       const userEmail = String(userData.email).trim();
       
-      if (userRole === '관리자') return true;
-      
-      if (userRole === '부관리자') {
+      let hasAccess = false;
+      if (userRole === '관리자') hasAccess = true;
+      else if (userRole === '부관리자') {
         const itemBranch = String(item['지사'] || '').trim();
-        return itemBranch === userBranch;
+        hasAccess = itemBranch === userBranch;
       }
-      
-      if (userRole === '강사') {
+      else if (userRole === '강사') {
         const itemEmail = String(item['이메일'] || '').trim();
-        return itemEmail === userEmail;
+        hasAccess = itemEmail === userEmail;
       }
       
-      return false;
+      if (!hasAccess) return false;
+
+      if (searchQuery) {
+        const centerName = String(item['센터'] || '').toLowerCase();
+        const authorName = String(item['이름'] || '').toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return centerName.includes(query) || authorName.includes(query);
+      }
+
+      return true;
     });
 
     filteredByRole.forEach(item => {
@@ -207,7 +216,7 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
       }
     });
     return map;
-  }, [dataList, userData]);
+  }, [dataList, userData, searchQuery]);
 
   const filteredList = useMemo(() => {
     const dateStr = formatDate(selectedDate);
@@ -387,6 +396,20 @@ const ReportPage: React.FC<Props> = ({ title = "보고방", type = "CENTER_LIST"
       </header>
 
       <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        {/* Search Bar */}
+        <div className="px-4 py-2 shrink-0">
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+            <input
+              type="text"
+              placeholder="이름 또는 센터 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-medium text-[#0a1931] outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
+        </div>
+
         <div className="flex items-center justify-between p-3 shrink-0">
           <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="size-8 flex items-center justify-center hover:bg-gray-50 rounded-xl"><span className="material-symbols-outlined">chevron_left</span></button>
           <h2 className="text-base font-black">{currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월</h2>
