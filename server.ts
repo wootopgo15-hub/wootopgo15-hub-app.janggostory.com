@@ -16,6 +16,50 @@ async function createServer() {
   const wss = new WebSocketServer({ noServer: true });
   const clients = new Map();
 
+  // Add body parsing middleware
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.text({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // Google Sheets Proxy Endpoint
+  app.all('/api/proxy/sheets', async (req, res) => {
+    try {
+      const gUrl = 'https://script.google.com/macros/s/AKfycbyXuTg8tPqXQa2jLhVzBYxUae69F9015Mrff0N4TmtUN2zYFKeb53YCgfSQU8Btcht_/exec';
+      const url = new URL(gUrl);
+      
+      if (req.method === 'GET') {
+        for (const key in req.query) {
+          url.searchParams.append(key, req.query[key] as string);
+        }
+      }
+
+      console.log(`Proxying ${req.method} to Google Sheets: ${url.toString()}`);
+      
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers: {},
+        redirect: 'follow'
+      };
+
+      if (req.method === 'POST') {
+        const bodyContent = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+        fetchOptions.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
+        fetchOptions.body = bodyContent;
+      }
+
+      const response = await fetch(url.toString(), fetchOptions);
+      if (!response.ok) {
+        return res.status(response.status).send(`Proxy Error: HTTP ${response.status}`);
+      }
+      
+      const text = await response.text();
+      res.send(text);
+    } catch (error: any) {
+      console.error('Proxy Error:', error);
+      res.status(500).send(`Server Error: ${error.message}`);
+    }
+  });
+
   server.on('upgrade', (request, socket, head) => {
     console.log('Upgrade request received for URL:', request.url);
     if (request.url?.startsWith('/api/ws')) {

@@ -1,8 +1,8 @@
 
 import { UserData, ReportData } from '../types';
 
-// 사용자가 제공한 최종 배포 URL
-export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyXuTg8tPqXQa2jLhVzBYxUae69F9015Mrff0N4TmtUN2zYFKeb53YCgfSQU8Btcht_/exec';
+// 프록시 서버를 통해 구글 시트에 요청을 보냅니다 (CORS 에러 해결)
+export const WEB_APP_URL = '/api/proxy/sheets';
 
 // 시트 이름과 실제 시트 이름을 매핑합니다. (필요에 따라 수정)
 const SHEET_MAP: Record<string, string> = {
@@ -64,6 +64,11 @@ export const submitToGoogleSheets = async (data: any): Promise<boolean> => {
     const text = await response.text();
     
     if (text.trim().startsWith('<!DOCTYPE html>')) {
+      const errorMsg = 'Apps Script 배포 권한 오류: Apps Script 웹앱 배포 시 접근 권한을 반드시 "모든 사람(Anyone)"으로 설정해야 합니다. 지금 설정이 잘못되어 연결할 수 없습니다.';
+      if (!(window as any).hasAlertedScriptError) {
+        alert(errorMsg);
+        (window as any).hasAlertedScriptError = true;
+      }
       throw new Error('Apps Script 배포 권한을 "모든 사람(Anyone)"으로 설정했는지 확인하세요.');
     }
 
@@ -161,6 +166,11 @@ export const fetchSheetData = async (type: string = 'USER', forceRefresh: boolea
     const text = await response.text();
     
     if (text.trim().startsWith('<!DOCTYPE html>')) {
+      const errorMsg = 'Apps Script 배포 권한 오류: Apps Script 웹앱 배포 시 접근 권한을 반드시 "모든 사람(Anyone)"으로 설정해야 합니다. 지금 설정이 잘못되어 데이터를 불러올 수 없습니다. Apps Script 설정에서 배포 누르고 권한을 변경해주세요.';
+      if (!(window as any).hasAlertedScriptError) {
+        alert(errorMsg);
+        (window as any).hasAlertedScriptError = true;
+      }
       throw new Error('Apps Script 배포 권한을 "모든 사람(Anyone)"으로 설정했는지 확인하세요.');
     }
 
