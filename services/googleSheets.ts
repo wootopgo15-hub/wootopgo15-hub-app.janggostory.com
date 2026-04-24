@@ -2,7 +2,7 @@
 import { UserData, ReportData } from '../types';
 
 // 프록시 서버를 통해 구글 시트에 요청을 보냅니다 (CORS 에러 해결)
-export const WEB_APP_URL = '/api/proxy/sheets';
+export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyXuTg8tPqXQa2jLhVzBYxUae69F9015Mrff0N4TmtUN2zYFKeb53YCgfSQU8Btcht_/exec';
 
 // 시트 이름과 실제 시트 이름을 매핑합니다. (필요에 따라 수정)
 const SHEET_MAP: Record<string, string> = {
@@ -114,7 +114,10 @@ export const getCachedSheetData = (type: string): any[] => {
 export const fetchSheetData = async (type: string = 'USER', forceRefresh: boolean = false): Promise<any[]> => {
   const CACHE_KEY = `sheet_cache_${type}`;
   const CACHE_TIME_KEY = `${CACHE_KEY}_time`;
-  const CACHE_DURATION = 1000 * 60 * 1; // 1분 캐시 유지
+  
+  // 개발(테스트) 환경에서는 1분 캐시, 실제 앱(프로덕션)에서는 캐시 없이 항상 새로 가져오기
+  const isDev = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV;
+  const CACHE_DURATION = isDev ? 1000 * 60 * 1 : 0;
 
   // 백엔드에서 인식하는 시트 타입으로 변환
   const mappedType = SHEET_MAP[type] || type;
