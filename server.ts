@@ -31,13 +31,34 @@ async function createServer() {
     ws.on('message', (message) => {
       try {
         const data = JSON.parse(message.toString());
-        if (data.type === 'LOGIN') {
+        if (data.type === 'LOGIN' || data.type === 'FORCE_LOGIN') {
+          let kickoutOccurred = false;
+          // 기존 접속자 찾아서 강제 종료 신호 전송
+          for (let [clientWs, clientData] of clients.entries()) {
+            if (clientData.email === data.email && clientWs !== ws) {
+              // 같은 기기/브라우저(deviceId가 같음)인 경우 튕기지 않게 허용 (다중 탭 지원)
+              if (!clientData.deviceId || !data.deviceId || clientData.deviceId !== data.deviceId) {
+                if (clientWs.readyState === 1) { // 1 = OPEN
+                  clientWs.send(JSON.stringify({ type: 'KICKOUT' }));
+                  kickoutOccurred = true;
+                }
+                clients.delete(clientWs);
+              }
+            }
+          }
+          
+          if (kickoutOccurred) {
+            ws.send(JSON.stringify({ type: 'OTHER_LOGGED_OUT_INFO' }));
+          }
+
+          // 새로운 기기 로그인 처리
           clients.set(ws, { 
             name: data.name, 
             email: data.email, 
             branch: data.branch, 
             department: data.department,
-            location: data.location
+            location: data.location,
+            deviceId: data.deviceId
           });
           broadcastUserList();
         }

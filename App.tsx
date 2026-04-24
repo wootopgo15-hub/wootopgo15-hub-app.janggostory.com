@@ -14,6 +14,7 @@ import ForumPage from './pages/ForumPage';
 import StatsPage from './pages/StatsPage';
 import PropsOffPage from './pages/PropsOffPage';
 import SalaryPage from './pages/SalaryPage';
+import MailPage from './pages/MailPage';
 import PropsReminder from './components/PropsReminder';
 
 const App: React.FC = () => {
@@ -28,8 +29,14 @@ const App: React.FC = () => {
           const { name, email, branch, department } = JSON.parse(userData);
           const location = branch; // IP 대신 지사 정보만 사용
 
+          let deviceId = localStorage.getItem('deviceId');
+          if (!deviceId) {
+            deviceId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('deviceId', deviceId);
+          }
+
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'LOGIN', name, email, branch, department, location }));
+            ws.send(JSON.stringify({ type: 'LOGIN', name, email, branch, department, location, deviceId }));
           }
         }
       };
@@ -49,6 +56,13 @@ const App: React.FC = () => {
           const data = JSON.parse(event.data);
           if (data.type === 'USER_LIST') {
             window.dispatchEvent(new CustomEvent('userlist_update', { detail: data.users || [] }));
+          } else if (data.type === 'OTHER_LOGGED_OUT_INFO') {
+            alert('다른 기기에서 접속 중인 동일 계정은 로그아웃 됩니다.');
+          } else if (data.type === 'KICKOUT') {
+            alert('다른 기기에서 로그인하여 자동 로그아웃 되었습니다.');
+            localStorage.clear();
+            window.location.href = '#/login';
+            window.location.reload();
           }
         } catch (e) {
           console.error('Failed to parse WebSocket message:', e);
@@ -96,6 +110,7 @@ const App: React.FC = () => {
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/props-off" element={<PropsOffPage />} />
           <Route path="/salary" element={<SalaryPage />} />
+          <Route path="/mail" element={<MailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
