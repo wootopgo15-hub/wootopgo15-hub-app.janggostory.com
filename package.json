@@ -1,32 +1,450 @@
-{
-  "name": "janggo2026-portal",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "express": "^5.2.1",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^4.2.1",
-    "lucide-react": "^0.577.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-player": "^2.16.0",
-    "react-router-dom": "^7.13.0",
-    "ws": "^8.19.0"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/node": "^22.14.0",
-    "@types/ws": "^8.18.1",
-    "@vitejs/plugin-react": "^5.0.0",
-    "tsx": "^4.21.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+// =================================================================
+// 전역 설정 (ID 입력 불필요)
+// =================================================================
+
+const SHEET_MAP = {
+  'USER': 'USER',
+  'NOTICE': 'NOTICE',
+  'REPORT': 'REPORT',
+  'RESOURCE': 'RESOURCE',
+  'FORUM': 'FORUM',
+  'STATS': 'STATS',
+  'CENTER_LIST': 'CENTER',
+  'DEMENTIA': 'DEMENTIA',
+  'PROPS_OFF': 'PROPS_OFF',
+  'CLASS_MATERIALS': 'CLASS_MATERIALS',
+  'MAIL': 'MAIL' // 업무 메일 시트
+};
+
+// 현재 연결된 스프레드시트를 자동으로 가져오는 함수
+function getActiveSheetByName(name) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) return null;
+  return ss.getSheetByName(name);
+}
+
+// 실제 데이터가 있는 마지막 행을 찾는 함수 (빈 행 건너뛰기)
+function getRealLastRow(sheet) {
+  const data = sheet.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i].join("").trim().length > 0) {
+      return i + 1;
+    }
   }
+  return 1;
+}
+
+// =================================================================
+// CORS 설정을 위한 OPTIONS 요청 처리
+// =================================================================
+function doOptions(e) {
+  return ContentService.createTextOutput("OK").setMimeType(ContentService.MimeType.TEXT);
+}
+
+// =================================================================
+// GET 요청 처리 (데이터 읽기)
+// =================================================================
+function doGet(e) {
+  const type = e.parameter.type || 'USER';
+  const sheetName = SHEET_MAP[type] || type; // 매핑 없으면 그대로 사용
+  
+  const sheet = getActiveSheetByName(sheetName);
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: 'Sheet not found: ' + sheetName }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  
+  if (lastRow < 2 || lastCol < 1) {
+    return ContentService.createTextOutput(JSON.stringify([]))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = data[0];
+  const result = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const obj = {};
+    for (let j = 0; j < headers.length; j++) {
+      obj[headers[j]] = row[j];
+    }
+    // 삭제된 글표시 처리
+    if (obj['deleted'] !== true && obj['deleted'] !== 'true') {
+      result.push(obj);
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// =================================================================
+// POST 요청 처리 (데이터 쓰기/수정/삭제/인증)
+// =================================================================
+function doPost(e) {
+  try {
+    const rawData = e.postData.contents;
+    let data;
+    try {
+      data = JSON.parse(rawData);
+    } catch(err) {
+      return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: 'Invalid JSON' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // mode 파라미터가 없으면 type으로 유추
+    const mode = data.mode || data.type; 
+
+    switch (mode) {
+      case 'LOGIN': return handleLogin(data);
+      case 'SIGNUP': return handleSignup(data);
+      case 'APPEND': return handleAppend(data);
+      case 'UPDATE': return handleUpdate(data);
+      case 'UPDATE_USER': return handleUpdateUser(data); // Admin 관리자 페이지에서 사용하는 상태 업데이트 등
+      case 'DELETE': return handleDelete(data);
+      case 'SEND_MAIL': return handleSendMail(data); 
+      case 'UPDATE_MAIL': return handleUpdateMail(data); 
+      default: return handleAppend(data); // 알 수 없는 경우 일단 APPEND 로 처리 (안전장치)
+    }
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: error.message })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// =================================================================
+// 개별 모드 핸들러
+// =================================================================
+
+// 객체의 값을 스프레드시트 헤더 순서대로 배열로 변환하는 헬퍼 함수
+function mapObjectToRow(data, headers) {
+  const row = [];
+  for (let i = 0; i < headers.length; i++) {
+    const colName = headers[i];
+    if (data.hasOwnProperty(colName)) {
+      row.push(data[colName]);
+    } else {
+      row.push("");
+    }
+  }
+  return row;
+}
+
+function handleLogin(data) {
+  const sheet = getActiveSheetByName(SHEET_MAP['USER']);
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ success: false, message: "USER sheet not found" }));
+
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ success: false, message: "가입된 사용자가 없습니다." }));
+
+  const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = sheetData[0];
+  
+  const targetId = String(data.id || data['아이디'] || data['ID']).trim();
+  const targetPw = String(data.password || data['비밀번호'] || data['PW']).trim();
+
+  let idIndex = headers.indexOf('아이디');
+  if (idIndex === -1) idIndex = headers.indexOf('ID');
+  if (idIndex === -1) idIndex = 1; // fallbacks
+  
+  let pwIndex = headers.indexOf('비밀번호');
+  if (pwIndex === -1) pwIndex = headers.indexOf('PW');
+  if (pwIndex === -1) pwIndex = 2; // fallbacks
+
+  let statusIndex = headers.indexOf('가입승인여부');
+  if (statusIndex === -1) statusIndex = headers.indexOf('상태');
+  if (statusIndex === -1) statusIndex = 10; // fallbacks
+
+  for(let i = 1; i < sheetData.length; i++) {
+    const rowId = String(sheetData[i][idIndex]).trim();
+    if(rowId === targetId) {
+      const rowPw = String(sheetData[i][pwIndex]).trim();
+      const status = String(sheetData[i][statusIndex]).trim(); 
+      
+      if(rowPw === targetPw) {
+        if(status === '대기') {
+          return ContentService.createTextOutput(JSON.stringify({ success: false, message: "관리자의 가입 승인 대기중입니다." }));
+        }
+
+        const userObj = {};
+        for (let j = 0; j < headers.length; j++) {
+          userObj[headers[j]] = sheetData[i][j];
+        }
+
+        return ContentService.createTextOutput(JSON.stringify({ success: true, user: userObj }));
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, message: "비밀번호가 일치하지 않습니다." }));
+      }
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ success: false, message: "존재하지 않는 아이디입니다." }));
+}
+
+function handleSignup(data) {
+  const sheet = getActiveSheetByName(SHEET_MAP['USER']);
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "USER sheet not found" }));
+
+  let lastCol = sheet.getLastColumn();
+  let headers = [];
+  if (lastCol < 1) {
+    headers = Object.keys(data).filter(k => k !== 'mode' && k !== 'type');
+    if (headers.length === 0) headers = ['아이디', '비밀번호'];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    lastCol = headers.length;
+  } else {
+    headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  }
+
+  const lastRow = getRealLastRow(sheet);
+  
+  let idIndex = headers.indexOf('아이디');
+  if (idIndex === -1) idIndex = headers.indexOf('ID');
+  if (idIndex === -1) idIndex = 1; 
+
+  const targetId = String(data['아이디'] || data['ID'] || "").trim();
+
+  if (lastRow >= 2 && targetId !== "") {
+    const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    for(let i = 1; i < sheetData.length; i++) {
+      if(String(sheetData[i][idIndex]).trim() === targetId) {
+        return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "ID_DUPLICATED" }));
+      }
+    }
+  }
+
+  const newRow = mapObjectToRow(data, headers);
+  sheet.getRange(lastRow + 1, 1, 1, newRow.length).setValues([newRow]);
+  return ContentService.createTextOutput(JSON.stringify({ result: 'success', message: "SIGNUP Success" })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleAppend(data) {
+  const sheetName = SHEET_MAP[data.type] || data.type;
+  const sheet = getActiveSheetByName(sheetName);
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "Sheet not found: " + data.type })).setMimeType(ContentService.MimeType.JSON);
+
+  let lastCol = sheet.getLastColumn();
+  let headers = [];
+  if (lastCol < 1) {
+    headers = Object.keys(data).filter(k => k !== 'mode' && k !== 'type');
+    if (headers.length === 0) headers = ['ID', 'CREATED_AT'];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    lastCol = headers.length;
+  } else {
+    headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  }
+
+  const newRow = mapObjectToRow(data, headers);
+
+  sheet.getRange(getRealLastRow(sheet) + 1, 1, 1, newRow.length).setValues([newRow]);
+  return ContentService.createTextOutput(JSON.stringify({ result: 'success', message: "APPEND Success" })).setMimeType(ContentService.MimeType.JSON);
+}
+
+// 데이터 수정 (UPDATE) - 타임스탬프 또는 ID 기준 동적 수정
+function handleUpdate(data) {
+  const sheetName = SHEET_MAP[data.type] || data.type;
+  const sheet = getActiveSheetByName(sheetName);
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "Sheet not found" })).setMimeType(ContentService.MimeType.JSON);
+
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "Sheet is empty" })).setMimeType(ContentService.MimeType.JSON);
+
+  const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = sheetData[0];
+  
+  const targetId = String(data.id || data.timestamp || data['타임스탬프']).trim();
+
+  for(let i = 1; i < sheetData.length; i++) {
+    let isMatch = false;
+    for(let c = 0; c < headers.length; c++) {
+       const head = String(headers[c]);
+       if (head === '타임스탬프' || head === 'timestamp' || head === 'ID' || head === 'id') {
+          if (String(sheetData[i][c]).trim() === targetId) {
+             isMatch = true;
+             break;
+          }
+       }
+    }
+    // 첫번째 열 매칭 (폴백)
+    if(String(sheetData[i][0]).trim() === targetId && targetId !== "") isMatch = true;
+
+    if (isMatch) {
+       const newRow = [...sheetData[i]]; 
+       for (let j = 0; j < headers.length; j++) {
+         const colName = headers[j];
+         if (data.hasOwnProperty(colName)) {
+           newRow[j] = data[colName];
+         }
+       }
+       sheet.getRange(i + 1, 1, 1, newRow.length).setValues([newRow]);
+       return ContentService.createTextOutput(JSON.stringify({ result: 'success', message: "UPDATE Success" })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: 'TARGET_NOT_FOUND' })).setMimeType(ContentService.MimeType.JSON);
+}
+
+// 유저 데이터 관련 수정 (AdminDashboard)
+function handleUpdateUser(data) {
+  const sheet = getActiveSheetByName(SHEET_MAP['USER']);
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "USER sheet not found" })).setMimeType(ContentService.MimeType.JSON);
+
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "Sheet is empty" })).setMimeType(ContentService.MimeType.JSON);
+
+  const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = sheetData[0];
+  
+  const targetEmail = String(data.email).trim();
+
+  let emailIndex = headers.indexOf('이메일');
+  if (emailIndex === -1) emailIndex = headers.indexOf('email');
+  
+  let idIndex = headers.indexOf('아이디');
+
+  for(let i = 1; i < sheetData.length; i++) {
+    let isMatch = false;
+    if (emailIndex !== -1 && String(sheetData[i][emailIndex]).trim() === targetEmail) {
+      isMatch = true;
+    } else if (idIndex !== -1 && targetEmail !== "" && String(sheetData[i][idIndex]).trim() === targetEmail) {
+      isMatch = true;
+    }
+
+    if (isMatch) {
+       const newRow = [...sheetData[i]]; 
+       for (let j = 0; j < headers.length; j++) {
+         const colName = headers[j];
+         // email은 target 식별자로 쓰였지만, status라던가 role 업데이트 처리됨
+         if (data.hasOwnProperty(colName)) {
+           newRow[j] = data[colName];
+         }
+       }
+       // status -> 상태 / 가입승인여부
+       if (data.status) {
+          let stIndex = headers.indexOf('상태');
+          if (stIndex === -1) stIndex = headers.indexOf('가입승인여부');
+          if (stIndex !== -1) newRow[stIndex] = data.status;
+       }
+       
+       sheet.getRange(i + 1, 1, 1, newRow.length).setValues([newRow]);
+       return ContentService.createTextOutput(JSON.stringify({ result: 'success', message: "UPDATE_USER Success" })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "TARGET_NOT_FOUND" })).setMimeType(ContentService.MimeType.JSON);
+}
+
+// 6. 데이터 삭제 (DELETE) 
+function handleDelete(data) {
+  const sheetName = SHEET_MAP[data.type] || data.type;
+  const sheet = getActiveSheetByName(sheetName);
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "Sheet not found" })).setMimeType(ContentService.MimeType.JSON);
+
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "Sheet is empty" })).setMimeType(ContentService.MimeType.JSON);
+
+  const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = sheetData[0];
+  const targetId = String(data.id || data.timestamp || data['타임스탬프']).trim();
+  const deletedColIndex = headers.indexOf('deleted') + 1;
+
+  for(let i = 1; i < sheetData.length; i++) {
+    let isMatch = false;
+    for(let c = 0; c < headers.length; c++) {
+       const head = String(headers[c]);
+       if (head === '타임스탬프' || head === 'timestamp' || head === 'ID' || head === 'id') {
+          if (String(sheetData[i][c]).trim() === targetId) {
+             isMatch = true;
+             break;
+          }
+       }
+    }
+    if(String(sheetData[i][0]).trim() === targetId && targetId !== "") isMatch = true;
+
+    if(isMatch) {
+      if(deletedColIndex > 0) {
+        sheet.getRange(i + 1, deletedColIndex).setValue(true);
+      } else {
+        // deleted 열이 없으면 끝에 추가
+        if (headers.indexOf('deleted') === -1) {
+          sheet.getRange(1, lastCol + 1).setValue('deleted');
+        }
+        sheet.getRange(i + 1, lastCol + 1).setValue(true);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ result: 'success', message: "DELETE Success" })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "TARGET_NOT_FOUND" })).setMimeType(ContentService.MimeType.JSON);
+}
+
+// 7. 이메일 발송 
+function handleSendMail(data) {
+  const sheetName = SHEET_MAP['MAIL'];
+  let sheet = getActiveSheetByName(sheetName);
+  
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "MAIL 시트를 먼저 만들어주세요" })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const id = data.id || String(Date.now());
+  const from = data.from || ''; 
+  const to = data.to || '';
+  const subject = data.subject || '';
+  const body = data.body || '';
+  const dateStr = data.date || new Date().toISOString();
+  let readStr = data.read === 'true' || data.read === true ? 'true' : 'false';
+
+  try {
+    MailApp.sendEmail({
+      to: to,
+      replyTo: from,
+      subject: subject,
+      body: body,
+      name: from
+    });
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "Mail API Error: " + err.message })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) {
+    sheet.getRange(1, 1, 1, 7).setValues([['ID', '발신자', '수신자', '제목', '내용', '날짜', '읽음']]);
+  }
+  
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 7)).getValues()[0];
+  const mappedRow = mapObjectToRow({ ID: id, id: id, '발신자': from, from: from, '수신자': to, to: to, '제목': subject, subject: subject, '내용': body, body: body, '날짜': dateStr, date: dateStr, '읽음': readStr, read: readStr }, headers);
+
+  sheet.getRange(getRealLastRow(sheet) + 1, 1, 1, mappedRow.length).setValues([mappedRow]);
+
+  return ContentService.createTextOutput(JSON.stringify({ result: 'success', message: "SEND_MAIL Success" })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleUpdateMail(data) {
+  const sheetName = SHEET_MAP['MAIL'];
+  const sheet = getActiveSheetByName(sheetName);
+  
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "MAIL sheet not found" })).setMimeType(ContentService.MimeType.JSON);
+
+  const lastRow = getRealLastRow(sheet);
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "Sheet empty" })).setMimeType(ContentService.MimeType.JSON);
+
+  const sheetData = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = sheetData[0];
+  let idIndex = headers.indexOf('ID'); if(idIndex === -1) idIndex = headers.indexOf('id'); if(idIndex === -1) idIndex = 0;
+  let readIndex = headers.indexOf('읽음'); if(readIndex === -1) readIndex = headers.indexOf('read'); if(readIndex === -1) readIndex = 6;
+  
+  for(let i = 1; i < sheetData.length; i++) {
+    if(String(sheetData[i][idIndex]).trim() === String(data.id).trim()) { 
+      sheet.getRange(i + 1, readIndex + 1).setValue('true');
+      return ContentService.createTextOutput(JSON.stringify({ result: 'success', message: "UPDATE_MAIL Success" })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ result: 'error', message: "TARGET_NOT_FOUND" })).setMimeType(ContentService.MimeType.JSON);
 }

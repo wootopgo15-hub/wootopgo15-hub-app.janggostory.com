@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitToGoogleSheets, fetchSheetData, getCachedSheetData } from '../services/googleSheets';
-import { Play } from 'lucide-react';
 
 interface Props {
   title?: string;
@@ -11,41 +10,94 @@ interface Props {
   color?: string;
 }
 
-const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE", icon = "folder_open", color = "amber-500" }) => {
+const ReportPage: React.FC<Props> = ({ title = "보고방", type = "REPORT", icon = "description", color = "primary" }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dataList, setDataList] = useState<any[]>([]);
+  const [centerList, setCenterList] = useState<any[]>([]);
+  const [userList, setUserList] = useState<any[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [userData, setUserData] = useState<any>(null);
   const [editItem, setEditItem] = useState<any>(null);
 
-  // Resource specific fields
+  const [formCenter, setFormCenter] = useState('');
   const [formSubject, setFormSubject] = useState('');
-  const [formBranch, setFormBranch] = useState('');
-  const [formLinkMusic, setFormLinkMusic] = useState('');
-  const [formLinkFolklore, setFormLinkFolklore] = useState('');
-  const [formLinkGymnastics, setFormLinkGymnastics] = useState('');
-  const [formLinkAids, setFormLinkAids] = useState('');
-  const [formLinkSong, setFormLinkSong] = useState('');
-  const [formStatus, setFormStatus] = useState('대기');
+  const [formTime, setFormTime] = useState('');
+  const [formDate, setFormDate] = useState('');
+  const [formAuthorName, setFormAuthorName] = useState('');
+  const [formAuthorEmail, setFormAuthorEmail] = useState('');
+  const [formAuthorBranch, setFormAuthorBranch] = useState('');
+  const [showCenterSuggestions, setShowCenterSuggestions] = useState(false);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
-  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // 센터 추가 모달 상태
+  const [isAddCenterModalOpen, setIsAddCenterModalOpen] = useState(false);
+  const [newCenterName, setNewCenterName] = useState('');
+  const [newCenterBranch, setNewCenterBranch] = useState('');
+  const [newCenterStatus, setNewCenterStatus] = useState('승인');
+  const [isAddingCenter, setIsAddingCenter] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredCenters = useMemo(() => {
+    const trimmedInput = formCenter.trim();
+    const excludedWords = ['요양원', '센터', '요양', '주간', '보호', '주간보', '주간보호', '주간보호센', '주간보호센터', '보호센', '보호센터', '간보', '간보호', '간보호센', '간보호센터', '호센', '호센터', '세종', '평택'];
+    
+    // 2글자 미만이거나, 제외 단어만 정확히 입력한 경우 미리보기 숨김
+    if (trimmedInput.length < 2 || excludedWords.includes(trimmedInput) || !userData) return [];
+    
+    const userRole = String(userData.role).trim();
+    const userBranch = String(userData.branch).trim();
+
+    return centerList.filter(item => {
+      const centerName = String(item['센터명'] || Object.values(item)[0] || '').trim();
+      const centerBranch = String(item['지사'] || Object.values(item)[1] || '').trim();
+      
+      // 검색어 포함 여부
+      const matchesSearch = centerName.toLowerCase().includes(trimmedInput.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // 관리자는 전체, 그 외는 본인 지사만
+      if (userRole === '관리자') return true;
+      return centerBranch === userBranch;
+    }).map(item => String(item['센터명'] || Object.values(item)[0] || '').trim());
+  }, [centerList, formCenter, userData]);
 
   useEffect(() => {
     const savedData = localStorage.getItem('userData');
     if (savedData) {
       const parsed = JSON.parse(savedData);
       setUserData(parsed);
-      setFormBranch(parsed.branch || '전체');
+      // 기본값 설정
+      setFormCenter('');
+      setFormSubject('');
+      setFormTime(''); // 초기값을 비워서 --:-- 로 표시되게 함
     }
     
+    // 1. 캐시 데이터 즉시 로드
     const cached = getCachedSheetData(type);
     if (cached.length > 0) {
       setDataList(cached);
     }
     
+    const cachedCenters = getCachedSheetData('CENTER');
+    if (cachedCenters.length > 0) {
+      setCenterList(cachedCenters);
+    }
+
+    const cachedUsers = getCachedSheetData('USER');
+    if (cachedUsers.length > 0) {
+      setUserList(cachedUsers);
+    }
+    
+    // 2. 최신 데이터 백그라운드 로드
     loadData();
+    loadCenterList();
+    loadUserList();
   }, [type]);
 
   const loadData = async (force: boolean = false) => {
@@ -53,396 +105,596 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
     try {
       const data = await fetchSheetData(type, force);
       setDataList(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to load ${type}:`, error);
+      if (type === 'STATS' || type === 'STATISTICS') {
+        setModalMessage(`통계 데이터를 불러오는데 실패했습니다: ${error.message || '알 수 없는 오류'}`);
+      } else {
+        setModalMessage(`데이터를 불러오는데 실패했습니다: ${error.message || '알 수 없는 오류'}`);
+      }
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const filteredList = useMemo(() => {
-    if (!userData) return [];
-    
-    return dataList.filter(item => {
+  const loadCenterList = async (force: boolean = false) => {
+    try {
+      const centers = await fetchSheetData('CENTER', force);
+      setCenterList(centers);
+    } catch (error) {
+      console.error("Failed to load center list:", error);
+    }
+  };
+
+  const loadUserList = async (force: boolean = false) => {
+    try {
+      const users = await fetchSheetData('USER', force);
+      setUserList(users);
+    } catch (error) {
+      console.error("Failed to load user list:", error);
+    }
+  };
+
+  const formatDate = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const formatDisplayTime = (timeStr: string) => {
+    if (!timeStr) return '';
+    if (timeStr.includes('T')) {
+      const date = new Date(timeStr);
+      if (!isNaN(date.getTime())) {
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+    }
+    return timeStr;
+  };
+
+  const groupedData = useMemo(() => {
+    const map = new Map<string, any[]>();
+    if (!userData) return map;
+
+    // 권한에 따른 데이터 필터링
+    const filteredByRole = dataList.filter(item => {
       const userRole = String(userData.role).trim();
       const userBranch = String(userData.branch).trim();
       const userEmail = String(userData.email).trim();
       
-      if (userRole === '관리자') return true;
+      let hasAccess = false;
+      if (userRole === '관리자') hasAccess = true;
+      else if (userRole === '부관리자') {
+        const itemBranch = String(item['지사'] || '').trim();
+        hasAccess = itemBranch === userBranch;
+      }
+      else if (userRole === '강사') {
+        const itemEmail = String(item['이메일'] || '').trim();
+        hasAccess = itemEmail === userEmail;
+      }
       
-      const itemBranch = String(item['지사'] || '전체').trim();
-      const itemEmail = String(item['이메일'] || '').trim();
+      if (!hasAccess) return false;
 
-      if (itemBranch === '전체' || itemBranch === '본사') return true;
-      if (userRole === '부관리자') return itemBranch === userBranch;
-      if (userRole === '강사') return itemEmail === userEmail;
-      
-      return false;
+      if (searchQuery) {
+        const centerName = String(item['센터'] || '').toLowerCase();
+        const authorName = String(item['이름'] || '').toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return centerName.includes(query) || authorName.includes(query);
+      }
+
+      return true;
     });
-  }, [dataList, userData]);
+
+    filteredByRole.forEach(item => {
+      let dateVal = item['날짜'] || item['기준일'] || item['타임스탬프'];
+      if (!dateVal) return;
+
+      let dStr = '';
+      try {
+        const dateObj = new Date(dateVal);
+        if (!isNaN(dateObj.getTime())) {
+          dStr = formatDate(dateObj);
+        } else {
+          // 날짜 객체로 변환 실패 시 문자열 정규화 시도 (예: 2026. 2. 19. -> 2026-02-19)
+          const match = String(dateVal).match(/(\d{4})[.-]\s?(\d{1,2})[.-]\s?(\d{1,2})/);
+          if (match) {
+            dStr = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+          } else {
+            dStr = String(dateVal).substring(0, 10);
+          }
+        }
+      } catch (e) {
+        dStr = String(dateVal).substring(0, 10);
+      }
+
+      if (dStr) {
+        if (!map.has(dStr)) map.set(dStr, []);
+        map.get(dStr)?.push(item);
+      }
+    });
+    return map;
+  }, [dataList, userData, searchQuery]);
+
+  const filteredList = useMemo(() => {
+    const dateStr = formatDate(selectedDate);
+    return groupedData.get(dateStr) || [];
+  }, [groupedData, selectedDate]);
+
+  const calendarDays = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const startDay = new Date(year, month, 1).getDay();
+    const days = [];
+    for (let i = 0; i < startDay; i++) days.push(null);
+    for (let i = 1; i <= totalDays; i++) days.push(new Date(year, month, i));
+    
+    // 7의 배수로 맞추기 위해 빈 칸 추가
+    const remaining = days.length % 7;
+    if (remaining > 0) {
+      for (let i = 0; i < 7 - remaining; i++) days.push(null);
+    }
+    
+    return days;
+  }, [currentDate]);
 
   const handleAddData = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userData) return;
+
+    if (formDate.endsWith('-00')) {
+      setModalMessage("날짜를 올바르게 선택해주세요.");
+      return;
+    }
+
+    // 센터 유효성 검사
+    const trimmedCenter = formCenter.trim();
+    const allCenterNames = centerList.map(c => String(Object.values(c)[0] || '').trim());
+    if (centerList.length > 0 && !allCenterNames.includes(trimmedCenter)) {
+      setModalMessage("등록되지 않은 센터명입니다. 목록에서 선택하거나 정확히 입력해주세요.");
+      return;
+    }
+
     setLoading(true);
 
     const now = new Date();
     
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const selectedDateObj = new Date(formDate || new Date().toISOString());
+    const dayOfWeek = days[selectedDateObj.getDay()];
+    
     const payload: any = {
       type: type,
       mode: editItem ? 'UPDATE' : 'APPEND',
-      이름: userData.name,
-      과목: formSubject,
-      지사: formBranch,
-      이메일: userData.email,
-      승인: formStatus,
-      음악: formLinkMusic,
-      전래: formLinkFolklore,
-      체조: formLinkGymnastics,
-      교구: formLinkAids,
-      노래: formLinkSong,
-      타임스탬프: editItem ? editItem['타임스탬프'] : now.toISOString(),
+      userName: formAuthorName || userData.name,
+      date: formDate,
+      time: formTime,
+      dayOfWeek: dayOfWeek,
+      center: formCenter,
+      subject: formSubject,
+      branch: formAuthorBranch || userData.branch,
+      email: formAuthorEmail || userData.email,
+      department: userData.department || '비고',
+      timestamp: editItem ? (editItem['타임스탬프'] || editItem['timestamp']) : now.toISOString(),
     };
 
     try {
-      if (await submitToGoogleSheets(payload)) {
-        setIsModalOpen(false);
-        setEditItem(null);
-        setFormSubject('');
-        setFormLinkMusic('');
-        setFormLinkFolklore('');
-        setFormLinkGymnastics('');
-        setFormLinkAids('');
-        setFormLinkSong('');
-        setFormStatus('대기');
-        loadData();
+      // 1. 낙관적 업데이트 (화면에 즉시 반영)
+      const newItem = {
+        '이름': payload.userName,
+        '날짜': payload.date,
+        '시간': payload.time,
+        '요일': payload.dayOfWeek,
+        '센터': payload.center,
+        '과목': payload.subject,
+        '지사': payload.branch,
+        '이메일': payload.email,
+        '타임스탬프': payload.timestamp
+      };
+
+      if (editItem) {
+        setDataList(prev => prev.map(item => item['타임스탬프'] === payload['타임스탬프'] ? { ...item, ...newItem } : item));
+      } else {
+        setDataList(prev => [...prev, newItem]);
       }
-    } catch (err) {
+
+      // 모달 닫기 및 폼 초기화
+      setIsModalOpen(false);
+      setEditItem(null);
+      setFormCenter('');
+      setFormSubject('');
+      setFormTime('');
+
+      // 2. 백그라운드에서 구글 시트에 전송 및 동기화
+      await submitToGoogleSheets(payload);
+      loadData(true); // 강제 새로고침으로 캐시 업데이트 및 완벽한 동기화
+    } catch (err: any) {
       console.error('Submit Error:', err);
+      setModalMessage(`저장에 실패했습니다: ${err.message || '알 수 없는 오류'}`);
+      loadData(true); // 에러 발생 시 서버 데이터로 원상복구
     } finally {
       setLoading(false);
     }
   };
 
   const handleEditClick = (item: any) => {
-    if (userData.role !== '관리자' && item['이메일'] !== userData.email) {
-      return;
-    }
     setEditItem(item);
+    setFormCenter(item['센터'] || '');
     setFormSubject(item['과목'] || '');
-    setFormBranch(item['지사'] || '전체');
-    setFormLinkMusic(item['음악'] || '');
-    setFormLinkFolklore(item['전래'] || '');
-    setFormLinkGymnastics(item['체조'] || '');
-    setFormLinkAids(item['교구'] || '');
-    setFormLinkSong(item['노래'] || '');
-    setFormStatus(item['승인'] || '대기');
+    setFormTime(formatDisplayTime(item['시간']) || '');
+    setFormDate(item['날짜'] || formatDate(selectedDate));
+    setFormAuthorName(item['이름'] || userData?.name || '');
+    setFormAuthorEmail(item['이메일'] || userData?.email || '');
+    setFormAuthorBranch(item['지사'] || userData?.branch || '');
     setIsModalOpen(true);
   };
 
-
-
-  const getEmbedUrl = (url: string) => {
-    if (!url) return '';
-    
-    // Handle Google Drive links (file/d/ID or id=ID)
-    const driveRegex = /(?:file\/d\/|id=)([a-zA-Z0-9_-]+)/;
-    const driveMatch = url.match(driveRegex);
-    if (driveMatch && driveMatch[1] && !url.includes('presentation')) {
-      return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+  const handleAddCenterClick = () => {
+    if (!userData) return;
+    if (userData.role === '강사') {
+      setModalMessage('센터추가는 일반강사는 할수 없습니다');
+      return;
     }
-
-    // Handle Google Slides
-    const slideRegex = /presentation\/d\/([a-zA-Z0-9_-]+)/;
-    const slideMatch = url.match(slideRegex);
-    if (slideMatch && slideMatch[1]) {
-      return `https://docs.google.com/presentation/d/${slideMatch[1]}/preview`;
-    }
-    
-    // Handle YouTube links as fallback
-    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-    if (ytMatch && ytMatch[1]) {
-      return `https://www.youtube.com/embed/${ytMatch[1]}`;
-    }
-    
-    // Handle Google Sheets
-    const sheetRegex = /spreadsheets\/d\/([a-zA-Z0-9_-]+)/;
-    const sheetMatch = url.match(sheetRegex);
-    if (sheetMatch && sheetMatch[1]) {
-      return `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/htmlembed?widget=false&chrome=false&headers=false`;
-    }
-
-    return url;
+    setNewCenterName('');
+    setNewCenterBranch(userData.role === '관리자' ? '' : (userData.branch || ''));
+    setNewCenterStatus('승인');
+    setIsAddCenterModalOpen(true);
   };
 
-  const handleLinkClick = (url: string | undefined, status: string) => {
-    if (status !== '승인' && userData?.role !== '관리자') {
-      // 승인되지 않은 자료는 관리자만 접근 가능
-      return;
-    }
+  const handleAddCenterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCenterName.trim() || !newCenterBranch.trim()) return;
 
-    if (!url) {
-      setModalMessage("등록된 링크가 없습니다.");
-      return;
-    }
-    url = url.trim();
-    if (!url.startsWith('http')) {
-      setModalMessage("올바른 URL 형식이 아닙니다.");
-      return;
-    }
+    setIsAddingCenter(true);
+    try {
+      const payload = {
+        type: 'CENTER',
+        mode: 'APPEND',
+        '센터명': newCenterName.trim(),
+        '지사': newCenterBranch.trim(),
+        '승인상태': newCenterStatus
+      };
 
-    setIframeUrl(getEmbedUrl(url));
-  };
-
-  const handleExternalLinkClick = (url: string | undefined, status: string) => {
-    if (status !== '승인' && userData?.role !== '관리자') {
-      // 승인되지 않은 자료는 관리자만 접근 가능
-      return;
+      const success = await submitToGoogleSheets(payload);
+      if (success) {
+        setIsAddCenterModalOpen(false);
+        setNewCenterName('');
+        setNewCenterBranch('');
+        setNewCenterStatus('승인');
+        setModalMessage('센터가 성공적으로 추가되었습니다.');
+        loadCenterList(true); // 센터 목록 새로고침
+      } else {
+        setModalMessage('센터 추가에 실패했습니다.');
+      }
+    } catch (err: any) {
+      console.error('Center Add Error:', err);
+      setModalMessage(`센터 추가 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
+    } finally {
+      setIsAddingCenter(false);
     }
-
-    if (!url) {
-      setModalMessage("등록된 링크가 없습니다.");
-      return;
-    }
-    url = url.trim();
-    if (!url.startsWith('http')) {
-      setModalMessage("올바른 URL 형식이 아닙니다.");
-      return;
-    }
-
-    window.open(url, '_blank');
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] pb-44 font-sans">
-      <header className="px-4 pt-6 pb-3 bg-white/90 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 safe-top">
+    <div className="h-[100dvh] bg-white text-[#0f172a] font-sans overflow-hidden flex flex-col pb-20 safe-mb">
+      <header className="px-4 pt-6 pb-3 bg-white/90 backdrop-blur-xl flex items-center justify-between shrink-0 border-b border-gray-100 safe-top z-40">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/home')} className="size-8 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
             <span className="material-symbols-outlined font-bold text-lg">arrow_back</span>
           </button>
           <div>
             <h1 className="text-lg font-black tracking-tight leading-none">{title}</h1>
-            <p className="text-[8px] text-amber-500 font-black uppercase tracking-[0.2em] mt-1">Resource Hub</p>
+            <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] mt-1">Management Hub</p>
           </div>
         </div>
-        <button onClick={() => loadData(true)} disabled={isRefreshing} className={`size-8 rounded-full flex items-center justify-center bg-amber-500 text-white shadow-sm transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
-          <span className="material-symbols-outlined text-base">refresh</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleAddCenterClick} 
+            className="h-8 px-3 rounded-full flex items-center justify-center bg-emerald-500 text-white shadow-sm transition-all active:scale-95 font-bold text-xs"
+          >
+            센터추가
+          </button>
+          <button onClick={() => { loadData(true); loadCenterList(true); }} disabled={isRefreshing} className={`size-8 rounded-full flex items-center justify-center bg-primary text-white shadow-sm transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-95'}`}>
+            <span className="material-symbols-outlined text-lg">refresh</span>
+          </button>
+        </div>
       </header>
 
-      <main className="px-6 py-8 space-y-6">
-        {filteredList.length > 0 ? (
-          <div className="space-y-0 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-            {filteredList.map((item, idx) => (
-              <div 
-                key={idx} 
-                className="p-4 flex items-center gap-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-all group relative"
-              >
-                {/* Thumbnail */}
-                <div className="size-14 rounded-full overflow-hidden bg-amber-100 shrink-0 border border-amber-200/20 flex items-center justify-center">
-                  <img 
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item['과목'] || '자료')}&background=fef3c7&color=d97706&size=200`} 
-                    alt="Thumbnail" 
-                    className="size-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        {/* Search Bar */}
+        <div className="px-4 py-2 shrink-0">
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+            <input
+              type="text"
+              placeholder="이름 또는 센터 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-medium text-[#0a1931] outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
+        </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
-                      item['승인'] === '승인' ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500'
-                    }`}>
-                      {item['승인'] || '대기'}
-                    </span>
-                    <span className="text-[9px] text-gray-500 font-bold">{item['지사'] || '전체'}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-black text-[#0a1931] truncate leading-tight">{item['과목']}</h3>
-                  </div>
-                  
-                  <p className="text-[10px] text-gray-500 font-bold mt-0.5 mb-2">
-                    {item['이름']} · <span className="font-medium">{item['이메일']}</span>
-                  </p>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mt-2 w-full">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {item['음악'] && (
-                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['음악'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition-colors">
-                          <Play className="w-3 h-3 fill-current" /> 음악수업
-                        </button>
-                      )}
-                      {item['전래'] && (
-                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['전래'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-xl text-xs font-black hover:bg-purple-100 transition-colors">
-                          <Play className="w-3 h-3 fill-current" /> 전래수업
-                        </button>
-                      )}
-                      {item['체조'] && (
-                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['체조'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-xl text-xs font-black hover:bg-green-100 transition-colors">
-                          <Play className="w-3 h-3 fill-current" /> 체조수업
-                        </button>
-                      )}
-                      {item['교구'] && (
-                        <button onClick={(e) => { e.stopPropagation(); handleExternalLinkClick(item['교구'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-xs font-black hover:bg-amber-100 transition-colors">
-                          <Play className="w-3 h-3 fill-current" /> 교구수업
-                        </button>
-                      )}
-                      {item['노래'] && (
-                        <button onClick={(e) => { e.stopPropagation(); handleLinkClick(item['노래'], item['승인']); }} className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-xs font-black hover:bg-rose-100 transition-colors">
-                          <Play className="w-3 h-3 fill-current" /> 노래수업
-                        </button>
-                      )}
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); navigate('/class-materials'); }} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-colors ml-auto shrink-0">
-                      <Play className="w-3 h-3 fill-current" /> 수업준비
-                    </button>
-                  </div>
-                </div>
-
-                {/* Edit Button */}
-                {(userData?.role === '관리자' || item['이메일'] === userData?.email) && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditClick(item);
-                    }} 
-                    className="size-8 rounded-full flex items-center justify-center text-gray-200 hover:bg-gray-100 hover:text-amber-500 transition-all shrink-0"
-                  >
-                    <span className="material-symbols-outlined text-xl">edit</span>
-                  </button>
-                )}
-              </div>
+        <div className="flex items-center justify-between p-3 shrink-0">
+          <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="size-8 flex items-center justify-center hover:bg-gray-50 rounded-xl"><span className="material-symbols-outlined">chevron_left</span></button>
+          <h2 className="text-base font-black">{currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월</h2>
+          <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="size-8 flex items-center justify-center hover:bg-gray-50 rounded-xl"><span className="material-symbols-outlined">chevron_right</span></button>
+        </div>
+        
+        <div className="flex flex-col pb-6">
+          <div className="grid grid-cols-7 mb-1 shrink-0 text-center px-1">
+            {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
+              <div key={day} className={`text-[10px] font-bold uppercase ${i === 0 ? 'text-rose-400' : 'text-gray-400'}`}>{day}</div>
             ))}
           </div>
-        ) : (
-          <div className="py-32 flex flex-col items-center justify-center bg-white rounded-[3rem] border border-dashed border-gray-200">
-            <span className="material-symbols-outlined text-6xl text-gray-100 mb-4">folder_open</span>
-            <p className="text-gray-300 font-bold">등록된 자료가 없습니다.</p>
+          <div className="grid grid-cols-7 auto-rows-[minmax(75px,auto)] gap-px bg-gray-100 border-t border-gray-100">
+            {calendarDays.map((date, i) => {
+              if (!date) return <div key={`empty-${i}`} className="bg-white h-full w-full"></div>;
+              const dateStr = formatDate(date);
+              const isSelected = dateStr === formatDate(selectedDate);
+              const dayData = groupedData.get(dateStr) || [];
+              
+              // 센터별 색상 매핑 (무지개 색상 계열)
+              const rainbowColors = [
+                'bg-rose-500', 'bg-orange-500', 'bg-amber-500', 
+                'bg-emerald-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500'
+              ];
+              
+              return (
+                <button 
+                  key={i} 
+                  onClick={() => {
+                    setSelectedDate(date);
+                    setIsDetailsModalOpen(true);
+                  }} 
+                  className={`relative bg-white flex flex-col items-center justify-start pt-1 pb-1 transition-all overflow-hidden h-full w-full ${isSelected ? 'ring-2 ring-inset ring-primary z-10' : 'hover:bg-gray-50'}`}>
+                  <span className={`text-[10px] font-black mb-0.5 shrink-0 ${isSelected ? 'text-primary' : 'text-gray-600'}`}>{date.getDate()}</span>
+                  
+                  <div className="w-full px-0.5 space-y-px overflow-hidden flex-1">
+                    {dayData.slice(0, 4).map((item, idx) => {
+                      const centerName = item['센터'] || item['지사'] || '알수없음';
+                      const mobileCenterName = centerName.length > 5 ? centerName.substring(0, 5) + '...' : centerName;
+                      // 센터 이름 기반으로 고정된 랜덤 색상 선택
+                      const colorIdx = centerName.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % rainbowColors.length;
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`${rainbowColors[colorIdx]} text-[7px] md:text-[10px] text-white font-bold px-0.5 md:px-1.5 py-0.5 rounded-sm overflow-hidden whitespace-nowrap md:text-ellipsis text-center md:text-left leading-none tracking-tighter md:tracking-normal`}>
+                          <span className="md:hidden">{mobileCenterName}</span>
+                          <span className="hidden md:inline">{centerName}</span>
+                        </div>
+                      );
+                    })}
+                    {dayData.length > 4 && (
+                      <div className="text-[7px] text-gray-400 font-bold text-center leading-none">
+                        +{dayData.length - 4}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
       </main>
 
-      {userData?.role === '관리자' && (
-        <button 
-          onClick={() => {
-            setEditItem(null);
-            setFormSubject('');
-            setFormLinkMusic('');
-            setFormLinkFolklore('');
-            setFormLinkGymnastics('');
-            setFormLinkAids('');
-            setFormLinkSong('');
-            setFormStatus('대기');
-            setFormBranch(userData.branch || '전체');
-            setIsModalOpen(true);
-          }} 
-          className="fixed bottom-28 right-6 size-14 bg-amber-500 text-white rounded-full shadow-2xl shadow-amber-500/40 flex items-center justify-center active:scale-90 z-40 transition-all safe-mb"
-        >
-          <span className="material-symbols-outlined text-3xl">add</span>
-        </button>
+      <button 
+        onClick={() => {
+          setEditItem(null);
+          setFormCenter('');
+          setFormSubject('');
+          setFormTime(''); // 초기값을 비워서 --:-- 로 표시되게 함
+          const y = selectedDate.getFullYear();
+          const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+          setFormDate(`${y}-${m}-00`);
+          setFormAuthorName(userData?.name || '');
+          setFormAuthorEmail(userData?.email || '');
+          setFormAuthorBranch(userData?.branch || '');
+          setIsModalOpen(true);
+        }} 
+        className="fixed bottom-28 right-6 size-14 bg-primary text-white rounded-full shadow-xl flex items-center justify-center active:scale-90 z-40 safe-mb">
+        <span className="material-symbols-outlined text-3xl">add</span>
+      </button>
+
+      {/* Details Modal */}
+      {isDetailsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
+          <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80dvh] animate-fade-in">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white sticky top-0 z-10">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <span className="size-1.5 bg-primary rounded-full"></span>
+                {formatDate(selectedDate)} 상세 내역
+              </h3>
+              <button onClick={() => setIsDetailsModalOpen(false)} className="size-8 flex items-center justify-center bg-gray-50 text-gray-400 hover:text-gray-600 rounded-full transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="p-6 pb-12 overflow-y-auto custom-scrollbar flex-1">
+              {filteredList.length > 0 ? (
+                <div className="grid gap-3">
+                  {filteredList.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => {
+                        setIsDetailsModalOpen(false);
+                        handleEditClick(item);
+                      }}
+                      className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all cursor-pointer active:scale-[0.98]">
+                      <div className="size-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
+                        <span className="material-symbols-outlined text-2xl">{icon}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[#0a1931] truncate text-sm">
+                          {item['센터'] || '알수없음'} · {item['과목'] || '과목없음'}
+                        </p>
+                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                          {item['이름'] || '익명'} 강사님 · {formatDisplayTime(item['시간']) || item['타임스탬프']?.split('T')[1]?.substring(0, 5) || '기록없음'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-16 flex flex-col items-center justify-center bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                  <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">inbox</span>
+                  <p className="text-gray-400 font-bold text-sm">기록된 데이터가 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
+      {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-[2rem] p-6 sm:p-10 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="w-full max-w-md bg-white rounded-[2rem] p-6 pb-12 sm:p-10 sm:pb-12 animate-in fade-in zoom-in-95 duration-200 max-h-[80dvh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-black">{editItem ? '자료 수정' : '자료 등록'}</h2>
+              <h2 className="text-2xl font-black">{editItem ? '보고서 수정' : `${title} 작성`}</h2>
               <button onClick={() => setIsModalOpen(false)} className="size-10 rounded-xl bg-gray-50 flex items-center justify-center"><span className="material-symbols-outlined">close</span></button>
             </div>
-            <form onSubmit={handleAddData} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleAddData} className="space-y-5">
+              {/* 자동 입력 정보 표시 */}
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-2 border border-gray-100">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-gray-400 font-bold">작성자 / 지사</span>
+                  {(userData?.role === '관리자' || userData?.role === '부관리자') ? (
+                    <select
+                      value={formAuthorName}
+                      onChange={(e) => {
+                        const selectedName = e.target.value;
+                        setFormAuthorName(selectedName);
+                        const selectedUser = userList.find(u => u['이름'] === selectedName);
+                        if (selectedUser) {
+                          setFormAuthorEmail(selectedUser['이메일'] || '');
+                          setFormAuthorBranch(selectedUser['지사'] || '');
+                        }
+                      }}
+                      className="bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-[#0a1931] font-black outline-none focus:ring-2 focus:ring-primary/20 max-w-[160px] truncate"
+                    >
+                      {userList
+                        .filter(u => userData.role === '관리자' || u['지사'] === userData.branch)
+                        .map((u, idx) => (
+                          <option key={idx} value={u['이름']}>{u['이름']} / {u['지사']}</option>
+                        ))}
+                    </select>
+                  ) : (
+                    <span className="text-[#0a1931] font-black">{formAuthorName} / {formAuthorBranch}</span>
+                  )}
+                </div>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-gray-400 font-bold">이메일</span>
+                  <span className="text-[#0a1931] font-black">{formAuthorEmail}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#0a1931] ml-2">과목명 <span className="text-rose-500">*</span></label>
-                  <input 
-                    value={formSubject} 
-                    onChange={(e) => setFormSubject(e.target.value)} 
-                    placeholder="과목 이름" 
-                    className="w-full h-14 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all" 
-                    required 
-                  />
+                  <label className="text-xs font-bold text-[#0a1931] ml-2">날짜 <span className="text-rose-500">*</span></label>
+                  <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center justify-between px-3 sm:px-4 overflow-hidden">
+                    <span className="font-bold text-xs sm:text-sm text-[#0a1931] whitespace-nowrap overflow-hidden text-ellipsis">
+                      {formDate.endsWith('-00') || !formDate ? '날짜 선택' : formDate}
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 shrink-0 ml-1">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    <input 
+                      type="date"
+                      value={formDate.endsWith('-00') ? '' : formDate}
+                      onChange={(e) => setFormDate(e.target.value)}
+                      onClick={(e) => { try { e.currentTarget.showPicker(); } catch(err) {} }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#0a1931] ml-2">대상 지사</label>
+                  <label className="text-xs font-bold text-[#0a1931] ml-2">시간 <span className="text-rose-500">*</span></label>
+                  <div className="relative w-full h-14 rounded-2xl bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center justify-between px-3 sm:px-4 overflow-hidden">
+                    <span className="font-bold text-xs sm:text-sm text-[#0a1931] whitespace-nowrap overflow-hidden text-ellipsis">
+                      {!formTime ? '시간 선택' : formTime}
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 shrink-0 ml-1">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    <input 
+                      type="time"
+                      value={formTime} 
+                      onChange={(e) => setFormTime(e.target.value)} 
+                      onClick={(e) => { try { e.currentTarget.showPicker(); } catch(err) {} }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                      required 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 relative">
+                  <label className="text-xs font-bold text-[#0a1931] ml-2">센터명 <span className="text-rose-500">*</span></label>
+                  <input 
+                    value={formCenter} 
+                    onChange={(e) => {
+                      setFormCenter(e.target.value);
+                      setShowCenterSuggestions(true);
+                    }} 
+                    onFocus={() => setShowCenterSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowCenterSuggestions(false), 200)}
+                    placeholder="센터 이름 입력 (2글자 이상)" 
+                    className="w-full h-14 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all" 
+                    required 
+                  />
+                  
+                  {showCenterSuggestions && filteredCenters.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl z-[70] max-h-48 overflow-y-auto custom-scrollbar p-2">
+                      {filteredCenters.map((center, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setFormCenter(center);
+                            setShowCenterSuggestions(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl text-sm font-bold text-[#0a1931] transition-colors">
+                          {center}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[#0a1931] ml-2">과목 <span className="text-rose-500">*</span></label>
                   <select 
-                    value={formBranch} 
-                    onChange={(e) => setFormBranch(e.target.value)} 
-                    className="w-full h-14 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all appearance-none"
+                    value={formSubject} 
+                    onChange={(e) => setFormSubject(e.target.value)} 
+                    className="w-full h-14 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all appearance-none" 
+                    required 
                   >
-                    <option value="전체">전체</option>
-                    <option value="본사">본사</option>
-                    <option value="천안">천안</option>
-                    <option value="세종">세종</option>
-                    <option value="평택">평택</option>
-                    <option value="서울">서울</option>
+                    <option value="" disabled>과목 선택</option>
+                    {['음악', '전래', '체조', '교구', '노래'].map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#0a1931] ml-2">승인 상태</label>
-                <select 
-                  value={formStatus} 
-                  onChange={(e) => setFormStatus(e.target.value)} 
-                  className="w-full h-14 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all appearance-none"
-                >
-                  <option value="대기">대기</option>
-                  <option value="승인">승인</option>
-                  <option value="거절">거절</option>
-                </select>
+              <div className="flex gap-3">
+                {editItem && (
+                  <button 
+                    type="button" 
+                    disabled={loading} 
+                    onClick={() => setConfirmDelete(true)}
+                    className="w-1/3 h-16 bg-rose-50 text-rose-500 font-black rounded-2xl active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center">
+                    삭제
+                  </button>
+                )}
+                <button type="submit" disabled={loading} className={`${editItem ? 'w-2/3' : 'w-full'} h-16 bg-primary text-white font-black rounded-2xl shadow-lg active:scale-[0.98] disabled:opacity-50 transition-all`}>
+                  {loading ? "처리 중..." : editItem ? "보고서 수정하기" : "보고서 등록하기"}
+                </button>
               </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#0a1931] ml-2">음악 링크</label>
-                  <input 
-                    value={formLinkMusic} 
-                    onChange={(e) => setFormLinkMusic(e.target.value)} 
-                    placeholder="https://..." 
-                    className="w-full h-12 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#0a1931] ml-2">전래 링크</label>
-                  <input 
-                    value={formLinkFolklore} 
-                    onChange={(e) => setFormLinkFolklore(e.target.value)} 
-                    placeholder="https://..." 
-                    className="w-full h-12 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#0a1931] ml-2">체조 링크</label>
-                  <input 
-                    value={formLinkGymnastics} 
-                    onChange={(e) => setFormLinkGymnastics(e.target.value)} 
-                    placeholder="https://..." 
-                    className="w-full h-12 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#0a1931] ml-2">교구 링크</label>
-                  <input 
-                    value={formLinkAids} 
-                    onChange={(e) => setFormLinkAids(e.target.value)} 
-                    placeholder="https://..." 
-                    className="w-full h-12 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#0a1931] ml-2">노래 링크</label>
-                  <input 
-                    value={formLinkSong} 
-                    onChange={(e) => setFormLinkSong(e.target.value)} 
-                    placeholder="https://..." 
-                    className="w-full h-12 px-5 rounded-2xl bg-gray-50 border-none outline-none font-bold text-sm focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all" 
-                  />
-                </div>
-              </div>
-
-              <button type="submit" disabled={loading} className="w-full h-16 bg-amber-500 text-white font-black rounded-2xl shadow-lg active:scale-[0.98] disabled:opacity-50 transition-all mt-6">
-                {loading ? "전송 중..." : editItem ? "자료 수정하기" : "자료 등록하기"}
-              </button>
             </form>
           </div>
         </div>
@@ -454,28 +706,97 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
             <span className="material-symbols-outlined text-[26px]">home</span>
             <span className="text-[10px] font-bold">홈</span>
           </button>
-          <button onClick={() => navigate('/notice')} className="flex flex-col items-center justify-center gap-1.5 text-gray-400">
-            <span className="material-symbols-outlined text-[26px]">campaign</span>
+          <button onClick={() => navigate('/notice')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'NOTICE' ? 'text-primary' : 'text-gray-400'}`}>
+            <span className={`material-symbols-outlined text-[26px] ${type === 'NOTICE' && 'fill-1'}`}>campaign</span>
             <span className="text-[10px] font-bold">공지방</span>
           </button>
-          <button onClick={() => navigate('/report')} className="flex flex-col items-center justify-center gap-1.5 text-gray-400">
-            <span className="material-symbols-outlined text-[26px]">description</span>
+          <button onClick={() => navigate('/report')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'REPORT' ? 'text-primary' : 'text-gray-400'}`}>
+            <span className={`material-symbols-outlined text-[26px] ${type === 'REPORT' && 'fill-1'}`}>description</span>
             <span className="text-[10px] font-bold">보고방</span>
           </button>
-          <button onClick={() => navigate('/resource')} className="flex flex-col items-center justify-center gap-1.5 text-amber-500">
-            <span className="material-symbols-outlined text-[26px] fill-1">folder_open</span>
-            <span className="text-[10px] font-black">자료방</span>
+          <button onClick={() => navigate('/resource')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'RESOURCE' ? 'text-primary' : 'text-gray-400'}`}>
+            <span className={`material-symbols-outlined text-[26px] ${type === 'RESOURCE' && 'fill-1'}`}>folder_open</span>
+            <span className="text-[10px] font-bold">자료방</span>
           </button>
-          <button onClick={() => navigate('/forum')} className="flex flex-col items-center justify-center gap-1.5 text-gray-400">
-            <span className="material-symbols-outlined text-[26px]">forum</span>
+          <button onClick={() => navigate('/forum')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'FORUM' ? 'text-primary' : 'text-gray-400'}`}>
+            <span className={`material-symbols-outlined text-[26px] ${type === 'FORUM' && 'fill-1'}`}>forum</span>
             <span className="text-[10px] font-bold">소통방</span>
           </button>
-          <button onClick={() => navigate('/stats')} className="flex flex-col items-center justify-center gap-1.5 text-gray-400">
-            <span className="material-symbols-outlined text-[26px]">leaderboard</span>
+          <button onClick={() => navigate('/stats')} className={`flex flex-col items-center justify-center gap-1.5 ${type === 'STATS' || type === 'STATISTICS' ? 'text-primary' : 'text-gray-400'}`}>
+            <span className={`material-symbols-outlined text-[26px] ${(type === 'STATS' || type === 'STATISTICS') && 'fill-1'}`}>leaderboard</span>
             <span className="text-[10px] font-bold">통계방</span>
           </button>
         </div>
       </nav>
+
+      {/* 센터 추가 모달 */}
+      {isAddCenterModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-[#111318]">센터 추가</h3>
+              <button onClick={() => setIsAddCenterModalOpen(false)} className="size-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200">
+                <span className="material-symbols-outlined text-sm font-bold">close</span>
+              </button>
+            </div>
+            <form onSubmit={handleAddCenterSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">센터명</label>
+                <input
+                  type="text"
+                  value={newCenterName}
+                  onChange={(e) => setNewCenterName(e.target.value)}
+                  placeholder="추가할 센터명을 입력하세요"
+                  className="w-full h-12 px-4 rounded-xl bg-gray-50 border-none text-sm font-medium focus:ring-2 focus:ring-emerald-500 transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">지사</label>
+                <select
+                  value={newCenterBranch}
+                  onChange={(e) => setNewCenterBranch(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl bg-gray-50 border-none text-sm font-medium focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-70"
+                  required
+                  disabled={userData?.role !== '관리자'}
+                >
+                  <option value="" disabled>지사를 선택하세요</option>
+                  <option value="천안">천안</option>
+                  <option value="세종">세종</option>
+                  <option value="평택">평택</option>
+                  <option value="준비중">준비중</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">승인상태</label>
+                <select
+                  value={newCenterStatus}
+                  onChange={(e) => setNewCenterStatus(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl bg-gray-50 border-none text-sm font-medium focus:ring-2 focus:ring-emerald-500 transition-all"
+                >
+                  <option value="승인">승인</option>
+                  <option value="대기">대기</option>
+                  <option value="거절">거절</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={isAddingCenter || !newCenterName.trim() || !newCenterBranch.trim()}
+                className="w-full h-12 bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+              >
+                {isAddingCenter ? (
+                  <>
+                    <span className="material-symbols-outlined animate-spin">refresh</span>
+                    <span>추가 중...</span>
+                  </>
+                ) : (
+                  <span>추가하기</span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* 커스텀 모달 */}
       {modalMessage && (
@@ -498,29 +819,64 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
         </div>
       )}
 
-      {/* Iframe Modal */}
-      {iframeUrl && (
-        <div 
-          className="fixed inset-0 z-[100] flex flex-col bg-white animate-in fade-in duration-200"
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-100 shrink-0 safe-top">
-            <h3 className="text-lg font-black text-[#111318]">자료 보기</h3>
-            <button 
-              onClick={() => setIframeUrl(null)}
-              className="size-10 rounded-xl bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-          </div>
-          <div className="flex-1 w-full relative bg-gray-100">
-            <iframe 
-              src={iframeUrl} 
-              className="absolute inset-0 w-full h-full border-0" 
-              allow="autoplay; fullscreen" 
-              allowFullScreen
-              referrerPolicy="no-referrer"
-            ></iframe>
+      {/* 삭제 확인 모달 */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4 text-rose-500">
+              <span className="material-symbols-outlined text-3xl">warning</span>
+              <h3 className="text-lg font-black text-[#111318]">보고서 삭제</h3>
+            </div>
+            <p className="text-[#4a5568] font-medium leading-relaxed mb-6">
+              정말 이 보고서를 삭제하시겠습니까? 삭제된 데이터는 복구할 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-[#111318] font-black rounded-2xl transition-colors active:scale-[0.98]"
+              >
+                취소
+              </button>
+              <button 
+                onClick={async () => {
+                  setConfirmDelete(false);
+                  setLoading(true);
+                  try {
+                    const targetId = editItem['타임스탬프'] || editItem['timestamp'];
+                    if (!targetId) {
+                      setConfirmDelete(false);
+                      setModalMessage("삭제할 수 없는 항목입니다 (식별자 없음).");
+                      return;
+                    }
+
+                    const payload = {
+                      type: type,
+                      mode: 'DELETE',
+                      '타임스탬프': targetId,
+                      timestamp: targetId
+                    };
+                    
+                    // 낙관적 업데이트 (화면에서 즉시 제거)
+                    const updatedList = dataList.filter(item => (item['타임스탬프'] || item['timestamp']) !== targetId);
+                    setDataList(updatedList);
+                    setIsModalOpen(false);
+                    setModalMessage("보고서가 삭제되었습니다.");
+                    
+                    await submitToGoogleSheets(payload);
+                    loadData(true);
+                  } catch (err: any) {
+                    console.error('Delete Error:', err);
+                    setModalMessage(`삭제에 실패했습니다: ${err.message || '알 수 없는 오류'}`);
+                    loadData(true);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl transition-colors active:scale-[0.98]"
+              >
+                삭제하기
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -528,4 +884,4 @@ const ResourcePage: React.FC<Props> = ({ title = "자료방", type = "RESOURCE",
   );
 };
 
-export default ResourcePage;
+export default ReportPage;
